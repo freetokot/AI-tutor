@@ -9,7 +9,8 @@
     "forceConsistentCasingInFileNames": true,
     "outDir": ".",
     "rootDir": "./",
-    "lib": ["ES2020", "DOM", "DOM.Iterable"]
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "types": []
   },
   "include": ["*.ts", "*.d.ts"],
   "exclude": ["node_modules", "dist"]
