@@ -211,15 +211,15 @@
         <div id="settings-header">
             <button id="close-settings">&times;</button>
         </div>
-        <h2>Settings</h2>
-        <label for="llm-model">AI Model:</label>
+        <h2>Настройки</h2>
+        <label for="llm-model">Модель ИИ:</label>
         <select id="llm-model">
             <option value="gemini-default">Gemini (default)</option>
             <option value="gemini-lite">Gemini Lite</option>
             <option value="openrouter">Sonoma Sky Alpha</option>
         </select>
         <br><br>
-        <label for="tts-service">Voice Model:</label>
+        <label for="tts-service">Голосовая модель:</label>
         <select id="tts-service">
             <option value="vosk">Vosk</option>
             <option value="silero">Silero</option>
@@ -229,24 +229,23 @@
         </select>
         <div id="progress-container">
             <progress id="download-progress" value="0" max="100"></progress>
-            <div id="progress-text">Loading...</div>
+            <div id="progress-text">Загрузка...</div>
         </div>
     </div>
 
     <!-- Main Chat Content -->
     <div id="main">
         <header id="main-header">
-            <h1>AI Assistant VIKI</h1>
-            <button id="settings-button">Settings</button>
+            <h1>Вики - ИИ помощник</h1>
+            <button id="settings-button">Настройки</button>
         </header>
         <div id="chat">
             <!-- Example Messages -->
-            <div class="message bot">Hello! How can I help you today?</div>
-            <div class="message user">Hi! I have a question about web development.</div>
+            <div class="message bot">Привет! Чем тебе помочь сегодня?</div>
         </div>
         <div class="input-row">
-            <input type="text" id="input" placeholder="Enter a message...">
-            <button id="send">Send</button>
+            <input type="text" id="input" placeholder="Введите сообщение...">
+            <button id="send">Отправить</button>
         </div>
     </div>
 
