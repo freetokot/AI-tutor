@@ -701,33 +701,97 @@ async function speak(text: string) {
 
 async function speakWithGemini(text: string) {
     try {
-        // Use the secure Netlify function for TTS as well
-        const response = await fetch('/.netlify/functions/gemini', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                prompt: `Convert this text to speech: ${text}`,
-                model: TTS_CONFIG.model,
-                temperature: TTS_CONFIG.temperature,
-                useTools: false
-            })
-        });
+        // Check if we're running locally (development mode)
+        const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-        if (!response.ok) {
-            throw new Error(`TTS API Error: ${response.statusText}`);
+        if (isLocalDev) {
+            // LOCAL DEVELOPMENT: Use direct Google Cloud Text-to-Speech API
+            console.log('🔧 Running Gemini TTS in local development mode');
+
+            const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+            if (!apiKey) {
+                console.warn('Gemini API key not configured for local development, falling back to browser TTS');
+                const utterance = new SpeechSynthesisUtterance(text);
+                window.speechSynthesis.speak(utterance);
+                return;
+            }
+
+            const ttsRequestBody = {
+                input: {
+                    text: text
+                },
+                voice: {
+                    languageCode: 'en-US',
+                    name: TTS_CONFIG.voiceName
+                },
+                audioConfig: {
+                    audioEncoding: 'MP3',
+                    speakingRate: 1.0,
+                    pitch: 0.0
+                }
+            };
+
+            const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(ttsRequestBody)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Gemini TTS API error:', errorData);
+                throw new Error(`TTS API Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            if (!data.audioContent) {
+                throw new Error('No audio content received from Gemini TTS');
+            }
+
+            // Convert base64 to audio blob and play
+            const audioBuffer = Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0));
+            const audioBlob = new Blob([audioBuffer], { type: 'audio/mpeg' });
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+            audio.play();
+
+            // Clean up the URL after playing
+            audio.onended = () => URL.revokeObjectURL(audioUrl);
+        } else {
+            // PRODUCTION: Use Netlify function
+            console.log('🌐 Running Gemini TTS via Netlify function');
+
+            const response = await fetch('/.netlify/functions/gemini-tts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    text: text,
+                    voiceName: TTS_CONFIG.voiceName,
+                    temperature: TTS_CONFIG.temperature
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Gemini TTS Netlify function error:', errorData);
+                throw new Error(`TTS API Error: ${response.statusText}`);
+            }
+
+            // Get audio blob from response
+            const audioBlob = await response.blob();
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+            audio.play();
+
+            // Clean up the URL after playing
+            audio.onended = () => URL.revokeObjectURL(audioUrl);
         }
-
-        const data = await response.json();
-
-        // For now, we'll skip the audio processing since the Netlify function doesn't handle TTS
-        // This is a placeholder - you might want to implement TTS differently
-        console.log('TTS response:', data);
-
-        // Fallback to browser TTS
-        const utterance = new SpeechSynthesisUtterance(text);
-        window.speechSynthesis.speak(utterance);
     } catch (error) {
         console.error('Gemini TTS error:', error);
         // Fallback to browser TTS
