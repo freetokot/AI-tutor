@@ -17,7 +17,7 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
 
     // 3. Parse the request body
     const requestBody = JSON.parse(event.body || '{}');
-    const { prompt, model = 'models/gemini-2.5-flash', systemPrompt, temperature = 0.7, useTools = false } = requestBody;
+    const { prompt, model = 'models/gemini-2.5-flash', systemPrompt, temperature = 0.7, useTools = false, useHistory = true, chatHistory = [] } = requestBody;
 
     if (!prompt) {
       return { statusCode: 400, body: JSON.stringify({ error: 'Prompt is required' }) };
@@ -25,11 +25,7 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
 
     // 4. Build the Gemini API request body
     const geminiRequestBody: any = {
-      contents: [{
-        parts: [{
-          text: prompt
-        }]
-      }],
+      contents: [],
       generationConfig: {
         temperature: temperature,
       }
@@ -63,6 +59,30 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
         }]
       }];
     }
+
+    // Add conversation history if enabled
+    if (useHistory && chatHistory.length > 0) {
+      // Add recent messages from history (excluding system messages)
+      const recentMessages = chatHistory.slice(-10).filter((msg: any) => msg.role !== 'system');
+
+      // Convert chat history to Gemini format
+      for (const msg of recentMessages) {
+        geminiRequestBody.contents.push({
+          role: msg.role === 'assistant' ? 'model' : msg.role,
+          parts: [{
+            text: msg.content
+          }]
+        });
+      }
+    }
+
+    // Add current user message
+    geminiRequestBody.contents.push({
+      role: 'user',
+      parts: [{
+        text: prompt
+      }]
+    });
 
     // 5. Make the request to Gemini API
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`, {

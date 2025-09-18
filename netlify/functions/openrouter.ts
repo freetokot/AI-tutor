@@ -17,31 +17,35 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
 
     // 3. Parse the request body
     const requestBody = JSON.parse(event.body || '{}');
-    const { prompt, model = 'openrouter/sonoma-sky-alpha', systemPrompt, temperature = 0.7, messages = [] } = requestBody;
+    const { prompt, model = 'openrouter/sonoma-sky-alpha', systemPrompt, temperature = 0.7, useHistory = true, chatHistory = [] } = requestBody;
 
-    if (!prompt && messages.length === 0) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Either prompt or messages array is required' }) };
+    if (!prompt) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'Prompt is required' }) };
     }
 
     // 4. Build the OpenRouter API request body
     let openRouterMessages: Array<{role: string, content: string}> = [];
 
-    if (messages.length > 0) {
-      // Use provided messages array
-      openRouterMessages = messages;
-    } else {
-      // Build messages from prompt and systemPrompt
-      if (systemPrompt) {
-        openRouterMessages.push({
-          role: 'system',
-          content: systemPrompt
-        });
-      }
+    // Add system prompt if provided
+    if (systemPrompt) {
       openRouterMessages.push({
-        role: 'user',
-        content: prompt
+        role: 'system',
+        content: systemPrompt
       });
     }
+
+    // Add conversation history if enabled
+    if (useHistory && chatHistory.length > 0) {
+      // Add recent messages from history (excluding system messages)
+      const recentMessages = chatHistory.slice(-10).filter((msg: any) => msg.role !== 'system');
+      openRouterMessages.push(...recentMessages);
+    }
+
+    // Add current user message
+    openRouterMessages.push({
+      role: 'user',
+      content: prompt
+    });
 
     const openRouterRequestBody = {
       model: model,

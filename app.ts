@@ -401,7 +401,7 @@ const LLM_MODELS: Record<string, {model: string, name: string, provider: string}
     },
     'openrouter': {
         model: 'openrouter/sonoma-sky-alpha',
-        name: 'sonoma sky',
+        name: 'Sonoma Sky',
         provider: 'openrouter'
     }
 };
