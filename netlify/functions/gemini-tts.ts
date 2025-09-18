@@ -25,22 +25,27 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
 
     // 4. Build the Gemini TTS API request body
     const geminiTTSRequestBody = {
-      input: {
-        text: text
-      },
-      voice: {
-        languageCode: 'en-US',
-        name: voiceName
-      },
-      audioConfig: {
-        audioEncoding: 'MP3',
-        speakingRate: 1.0,
-        pitch: 0.0
+      contents: [{
+        role: 'user',
+        parts: [{
+          text: text
+        }]
+      }],
+      generationConfig: {
+        temperature: temperature,
+        responseModalities: ['audio'],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: {
+              voiceName: voiceName
+            }
+          }
+        }
       }
     };
 
     // 5. Make the request to Gemini TTS API
-    const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -56,17 +61,19 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     const data = await response.json();
 
     // 6. Check if the response has the expected structure
-    if (!data.audioContent) {
+    if (!data.candidates || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0].inlineData) {
       return { statusCode: 500, body: JSON.stringify({ error: 'Unexpected response format from Gemini TTS' }) };
     }
 
+    const inlineData = data.candidates[0].content.parts[0].inlineData;
+
     // 7. Convert base64 audio content to binary and return as audio response
-    const audioBuffer = Buffer.from(data.audioContent, 'base64');
+    const audioBuffer = Buffer.from(inlineData.data, 'base64');
 
     return {
       statusCode: 200,
       headers: {
-        'Content-Type': 'audio/mpeg',
+        'Content-Type': inlineData.mimeType || 'audio/wav',
         'Content-Length': audioBuffer.length.toString(),
         'Cache-Control': 'no-cache'
       },
