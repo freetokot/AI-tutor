@@ -6,7 +6,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "serve": "http-server",
     "dev": "vite",
-    "build": "tsc",
+    "build": "tsc && vite build",
     "build:watch": "tsc --watch"
   },
   "keywords": [],
