@@ -1,10 +1,5 @@
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
-import { GoogleGenAI } from '@google/genai';
-// Load API keys from environment variables
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-if (!API_KEY) {
-    throw new Error('GEMINI_API_KEY environment variable is required');
-}
+// SECURE API IMPLEMENTATION - Using Netlify Functions
+import { SchemaType } from '@google/generative-ai';
 const currentDate = new Date();
 // Форматируем дату для русскоязычной локали (дд.мм.гггг)
 const formattedDate = currentDate.toLocaleDateString('ru-RU');
@@ -162,55 +157,155 @@ async function makeTTSRequest(service, text) {
     }
     return response;
 }
-// LLM Model configurations
+// SECURE API CALL FUNCTION WITH LOCAL DEVELOPMENT FALLBACK
+async function callGeminiAPI(prompt, options = {}) {
+    const { model = 'models/gemini-2.5-flash', systemPrompt, temperature = 0.7, useTools = false, provider = 'google' } = options;
+    // Check if we're running locally (development mode)
+    const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocalDev) {
+        // LOCAL DEVELOPMENT: Use direct API calls with environment variables
+        console.log('🔧 Running in local development mode - using direct API calls');
+        if (provider === 'google') {
+            // Use Google Gemini API directly
+            const { GoogleGenerativeAI } = await import('@google/generative-ai');
+            const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+            if (!apiKey) {
+                throw new Error('VITE_GEMINI_API_KEY environment variable is required for local development');
+            }
+            const genAI = new GoogleGenerativeAI(apiKey);
+            const modelInstance = genAI.getGenerativeModel({
+                model: model,
+                systemInstruction: systemPrompt,
+                generationConfig: { temperature },
+                tools: useTools ? [{
+                        functionDeclarations: [{
+                                name: 'googleSearch',
+                                description: 'Search the web for information to answer questions',
+                                parameters: {
+                                    type: SchemaType.OBJECT,
+                                    properties: {
+                                        query: { type: SchemaType.STRING, description: 'The search query to find information' }
+                                    },
+                                    required: ['query']
+                                }
+                            }]
+                    }] : undefined
+            });
+            const result = await modelInstance.generateContent(prompt);
+            const response = result.response;
+            // Convert to the same format as Netlify function
+            return {
+                candidates: [{
+                        content: {
+                            parts: [{
+                                    text: response.text()
+                                }],
+                            role: 'model'
+                        },
+                        finishReason: 'STOP',
+                        index: 0
+                    }]
+            };
+        }
+        else if (provider === 'openrouter') {
+            // Use OpenRouter API directly
+            const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+            if (!apiKey) {
+                throw new Error('VITE_OPENROUTER_API_KEY environment variable is required for local development');
+            }
+            const messages = [];
+            if (systemPrompt) {
+                messages.push({ role: 'system', content: systemPrompt });
+            }
+            messages.push({ role: 'user', content: prompt });
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: messages,
+                    temperature: temperature
+                })
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`OpenRouter API Error: ${errorData.error || response.statusText}`);
+            }
+            const data = await response.json();
+            if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+                throw new Error('Unexpected response format from OpenRouter');
+            }
+            const botMessage = data.choices[0].message.content || 'No response content';
+            // Convert to the same format as Gemini for consistency
+            return {
+                candidates: [{
+                        content: {
+                            parts: [{
+                                    text: botMessage
+                                }],
+                            role: 'model'
+                        },
+                        finishReason: 'STOP',
+                        index: 0
+                    }]
+            };
+        }
+        else {
+            throw new Error(`Unsupported provider: ${provider}`);
+        }
+    }
+    else {
+        // PRODUCTION: Use appropriate Netlify function based on provider
+        console.log(`🌐 Running in production mode - using ${provider} Netlify function`);
+        let functionName = 'gemini';
+        if (provider === 'openrouter') {
+            functionName = 'openrouter';
+        }
+        const response = await fetch(`/.netlify/functions/${functionName}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                prompt,
+                model,
+                systemPrompt,
+                temperature,
+                useTools: provider === 'google' ? useTools : false // Only Google supports function calling
+            })
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`API Error: ${errorData.error || response.statusText}`);
+        }
+        const data = await response.json();
+        return data;
+    }
+}
+// LLM Model configurations (simplified for secure approach)
 const LLM_MODELS = {
     'gemini-default': {
         model: 'models/gemini-2.5-flash',
         name: 'Gemini 2.5 Flash',
-        apiKey: API_KEY,
         provider: 'google'
     },
     'gemini-flash-lite': {
         model: 'models/gemini-2.5-flash-lite',
         name: 'Gemini 2.5 Flash Lite',
-        apiKey: API_KEY,
         provider: 'google'
     },
     'openrouter': {
         model: 'openrouter/sonoma-sky-alpha',
-        name: 'Sonoma Sky Alpha',
-        apiKey: import.meta.env.VITE_OPENROUTER_API_KEY,
+        name: 'Sonoma Sky',
         provider: 'openrouter'
     }
 };
-const genAI = new GoogleGenerativeAI(API_KEY);
-const chatModel = genAI.getGenerativeModel({
-    model: LLM_CONFIG.model,
-    systemInstruction: LLM_CONFIG.systemPrompt,
-    generationConfig: {
-        temperature: LLM_CONFIG.temperature,
-    },
-    tools: [{
-            functionDeclarations: [{
-                    name: 'googleSearch',
-                    description: 'Search the web for information to answer questions',
-                    parameters: {
-                        type: SchemaType.OBJECT,
-                        properties: {
-                            query: {
-                                type: SchemaType.STRING,
-                                description: 'The search query to find information'
-                            }
-                        },
-                        required: ['query']
-                    }
-                }]
-        }],
-});
-let chat = chatModel.startChat();
 let currentModelConfig = LLM_MODELS['gemini-default'];
 let openRouterHistory = [];
-const ai = new GoogleGenAI({ apiKey: API_KEY });
 const chatDiv = document.getElementById('chat');
 const input = document.getElementById('input');
 const sendBtn = document.getElementById('send');
@@ -230,92 +325,66 @@ sendBtn.addEventListener('click', async () => {
     stopCurrentTTS();
     addMessage('user', userMessage);
     input.value = '';
-    // Function to send message with retry logic
+    // Function to send message with retry logic using secure Netlify function
     const sendMessageWithRetry = async (message, retryCount = 0) => {
         const maxRetries = 3;
         try {
-            const result = await chat.sendMessage(message);
-            const response = result.response;
-            // Handle different response formats based on provider
-            if (currentModelConfig.provider === 'google') {
-                // Check if the model wants to use a tool
-                const functionCalls = response.functionCalls();
-                if (functionCalls && functionCalls.length > 0) {
-                    console.log("Model wants to use search!");
-                    // Perform the search
-                    const searchResults = await performGoogleSearch(functionCalls[0].args.query);
-                    // Send the search results back to the model
-                    const resultWithSearch = await chat.sendMessage([{
-                            functionResponse: {
-                                name: 'googleSearch',
-                                response: {
-                                    content: searchResults,
-                                },
-                            },
-                        }]);
-                    // Get the final response
-                    const finalResponse = resultWithSearch.response;
-                    const botMessage = finalResponse.text();
-                    // Only add message if it's not empty and not an error
-                    if (botMessage && botMessage.trim() && !isModelError(botMessage)) {
-                        addMessage('bot', botMessage);
-                    }
-                    else if (botMessage && botMessage.trim()) {
-                        console.warn('Model returned error message, retrying:', botMessage);
-                        if (retryCount < maxRetries) {
-                            console.log(`Retrying message (attempt ${retryCount + 1}/${maxRetries})`);
-                            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
-                            return sendMessageWithRetry(message, retryCount + 1);
-                        }
-                    }
+            // Use secure Netlify function instead of direct API call
+            const data = await callGeminiAPI(message, {
+                model: currentModelConfig.model,
+                systemPrompt: LLM_CONFIG.systemPrompt,
+                temperature: LLM_CONFIG.temperature,
+                useTools: currentModelConfig.provider === 'google' // Only enable tools for Google models
+            });
+            // Extract the response text from the Netlify function response
+            let botMessage = '';
+            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                const content = data.candidates[0].content;
+                if (content.parts && content.parts[0] && content.parts[0].text) {
+                    botMessage = content.parts[0].text;
                 }
-                else {
-                    // No tool calls, just return the text response
-                    const botMessage = response.text();
-                    // Only add message if it's not empty and not an error
-                    if (botMessage && botMessage.trim() && !isModelError(botMessage)) {
-                        addMessage('bot', botMessage);
-                    }
-                    else if (botMessage && botMessage.trim()) {
-                        console.warn('Model returned error message, retrying:', botMessage);
-                        if (retryCount < maxRetries) {
-                            console.log(`Retrying message (attempt ${retryCount + 1}/${maxRetries})`);
-                            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
-                            return sendMessageWithRetry(message, retryCount + 1);
-                        }
-                    }
-                    else if (!botMessage || !botMessage.trim()) {
-                        console.warn('Model returned empty message, retrying');
-                        if (retryCount < maxRetries) {
-                            console.log(`Retrying message (attempt ${retryCount + 1}/${maxRetries})`);
-                            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
-                            return sendMessageWithRetry(message, retryCount + 1);
-                        }
+            }
+            // Check if the model wants to use a tool (function calling)
+            if (data.candidates && data.candidates[0] && data.candidates[0].content &&
+                data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
+                data.candidates[0].content.parts[0].functionCall) {
+                console.log("Model wants to use search!");
+                const functionCall = data.candidates[0].content.parts[0].functionCall;
+                if (functionCall.name === 'googleSearch' && functionCall.args && functionCall.args.query) {
+                    // Perform the search using our secure function
+                    const searchResults = await performGoogleSearch(functionCall.args.query);
+                    // Send the search results back to the model for a final response
+                    const followUpData = await callGeminiAPI(`Based on this search result, please answer the user's question: "${message}"\n\nSearch Results:\n${searchResults}`, {
+                        model: currentModelConfig.model,
+                        systemPrompt: LLM_CONFIG.systemPrompt,
+                        temperature: LLM_CONFIG.temperature,
+                        useTools: false // Don't use tools in follow-up
+                    });
+                    // Extract the final response
+                    if (followUpData.candidates && followUpData.candidates[0] && followUpData.candidates[0].content &&
+                        followUpData.candidates[0].content.parts && followUpData.candidates[0].content.parts[0]) {
+                        botMessage = followUpData.candidates[0].content.parts[0].text || '';
                     }
                 }
             }
-            else if (currentModelConfig.provider === 'openrouter') {
-                // OpenRouter doesn't support function calls in the same way
-                const botMessage = response.text();
-                // Only add message if it's not empty and not an error
-                if (botMessage && botMessage.trim() && !isModelError(botMessage)) {
-                    addMessage('bot', botMessage);
+            // Only add message if it's not empty and not an error
+            if (botMessage && botMessage.trim() && !isModelError(botMessage)) {
+                addMessage('bot', botMessage);
+            }
+            else if (botMessage && botMessage.trim()) {
+                console.warn('Model returned error message, retrying:', botMessage);
+                if (retryCount < maxRetries) {
+                    console.log(`Retrying message (attempt ${retryCount + 1}/${maxRetries})`);
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+                    return sendMessageWithRetry(message, retryCount + 1);
                 }
-                else if (botMessage && botMessage.trim()) {
-                    console.warn('Model returned error message, retrying:', botMessage);
-                    if (retryCount < maxRetries) {
-                        console.log(`Retrying message (attempt ${retryCount + 1}/${maxRetries})`);
-                        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
-                        return sendMessageWithRetry(message, retryCount + 1);
-                    }
-                }
-                else if (!botMessage || !botMessage.trim()) {
-                    console.warn('Model returned empty message, retrying');
-                    if (retryCount < maxRetries) {
-                        console.log(`Retrying message (attempt ${retryCount + 1}/${maxRetries})`);
-                        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
-                        return sendMessageWithRetry(message, retryCount + 1);
-                    }
+            }
+            else if (!botMessage || !botMessage.trim()) {
+                console.warn('Model returned empty message, retrying');
+                if (retryCount < maxRetries) {
+                    console.log(`Retrying message (attempt ${retryCount + 1}/${maxRetries})`);
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+                    return sendMessageWithRetry(message, retryCount + 1);
                 }
             }
         }
@@ -358,43 +427,9 @@ async function switchToModel(modelKey) {
             throw new Error(`Model configuration not found for: ${modelKey}`);
         }
         currentModelConfig = modelConfig;
-        if (modelConfig.provider === 'google') {
-            // Use Google Gemini
-            if (!modelConfig.apiKey) {
-                throw new Error('API key is required for Google models');
-            }
-            const genAI = new GoogleGenerativeAI(modelConfig.apiKey);
-            const chatModel = genAI.getGenerativeModel({
-                model: modelConfig.model,
-                systemInstruction: LLM_CONFIG.systemPrompt,
-                generationConfig: {
-                    temperature: LLM_CONFIG.temperature,
-                },
-                tools: [{
-                        functionDeclarations: [{
-                                name: 'googleSearch',
-                                description: 'Search the web for information to answer questions',
-                                parameters: {
-                                    type: SchemaType.OBJECT,
-                                    properties: {
-                                        query: {
-                                            type: SchemaType.STRING,
-                                            description: 'The search query to find information'
-                                        }
-                                    },
-                                    required: ['query']
-                                }
-                            }]
-                    }],
-            });
-            chat = chatModel.startChat();
-            // Clear OpenRouter history when switching away
+        // Clear OpenRouter history when switching away from it
+        if (currentModelConfig.provider !== 'openrouter') {
             openRouterHistory = [];
-        }
-        else if (modelConfig.provider === 'openrouter') {
-            // Use OpenRouter API
-            chat = await createOpenRouterChat(modelConfig);
-            // History is maintained for OpenRouter, no need to reset
         }
         console.log(`Switched to model: ${modelConfig.name}`);
         addMessage('bot', `Переключено на модель: ${modelConfig.name}`, true); // Skip TTS for system messages
@@ -525,88 +560,50 @@ async function speak(text) {
 }
 async function speakWithGemini(text) {
     try {
-        const config = {
-            temperature: TTS_CONFIG.temperature,
-            responseModalities: ['audio'],
-            speechConfig: {
-                voiceConfig: {
-                    prebuiltVoiceConfig: {
-                        voiceName: TTS_CONFIG.voiceName,
-                    }
-                }
-            },
-        };
-        const model = TTS_CONFIG.model;
-        const contents = [
-            {
-                role: 'user',
-                parts: [
-                    {
-                        text: text,
-                    },
-                ],
-            },
-        ];
-        const response = await ai.models.generateContentStream({
-            model,
-            config,
-            contents,
-        });
-        let audioData = '';
-        let mimeType = '';
-        for await (const chunk of response) {
-            if (chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
-                const inlineData = chunk.candidates[0].content.parts[0].inlineData;
-                audioData += inlineData.data || '';
-                mimeType = inlineData.mimeType || '';
-            }
-        }
-        if (audioData) {
-            let buffer;
-            if (!mimeType.includes('wav')) {
-                buffer = convertToWav(audioData, mimeType);
-            }
-            else {
-                const binaryString = atob(audioData);
-                buffer = new Uint8Array(binaryString.length);
-                for (let i = 0; i < binaryString.length; i++) {
-                    buffer[i] = binaryString.charCodeAt(i);
-                }
-            }
-            const blob = new Blob([buffer], { type: 'audio/wav' });
-            const audio = new Audio(URL.createObjectURL(blob));
-            audio.play();
-        }
-    }
-    catch (error) {
-        console.error('Gemini TTS error:', error);
-    }
-}
-async function speakWithGoogleCloud(text) {
-    try {
-        const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${API_KEY}`, {
+        // Use the secure Netlify function for TTS as well
+        const response = await fetch('/.netlify/functions/gemini', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                input: { text: text },
-                voice: { languageCode: 'en-US', name: 'en-US-Wavenet-D' },
-                audioConfig: { audioEncoding: 'MP3' },
-            }),
+                prompt: `Convert this text to speech: ${text}`,
+                model: TTS_CONFIG.model,
+                temperature: TTS_CONFIG.temperature,
+                useTools: false
+            })
         });
         if (!response.ok) {
-            throw new Error('Google Cloud TTS failed');
+            throw new Error(`TTS API Error: ${response.statusText}`);
         }
         const data = await response.json();
-        const audioContent = data.audioContent;
-        const audioBuffer = Uint8Array.from(atob(audioContent), c => c.charCodeAt(0));
-        const blob = new Blob([audioBuffer], { type: 'audio/mp3' });
-        const audio = new Audio(URL.createObjectURL(blob));
-        audio.play();
+        // For now, we'll skip the audio processing since the Netlify function doesn't handle TTS
+        // This is a placeholder - you might want to implement TTS differently
+        console.log('TTS response:', data);
+        // Fallback to browser TTS
+        const utterance = new SpeechSynthesisUtterance(text);
+        window.speechSynthesis.speak(utterance);
+    }
+    catch (error) {
+        console.error('Gemini TTS error:', error);
+        // Fallback to browser TTS
+        const utterance = new SpeechSynthesisUtterance(text);
+        window.speechSynthesis.speak(utterance);
+    }
+}
+async function speakWithGoogleCloud(text) {
+    try {
+        // For now, we'll use browser TTS as the Google Cloud TTS requires a separate API key
+        // You can implement this later with a separate Netlify function for TTS
+        console.log('Google Cloud TTS not implemented yet, using browser TTS');
+        const utterance = new SpeechSynthesisUtterance(text);
+        window.speechSynthesis.speak(utterance);
     }
     catch (error) {
         console.error('Google Cloud TTS error:', error);
+        // Fallback to browser TTS
+        const utterance = new SpeechSynthesisUtterance(text);
+        window.speechSynthesis.speak(utterance);
     }
 }
 async function downloadWithProgress(url, onProgress) {
@@ -798,28 +795,62 @@ async function speakWithPiper(text) {
     audio.play();
 }
 async function performGoogleSearch(query) {
-    const cx = import.meta.env.VITE_CX;
-    if (!cx) {
-        return 'Google Search CX not configured.';
-    }
-    const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${API_KEY}&cx=${cx}&q=${encodeURIComponent(query)}`;
-    try {
-        const response = await fetch(searchUrl);
-        if (response.ok) {
-            const data = await response.json();
-            if (data.items && data.items.length > 0) {
-                const results = data.items.slice(0, 3).map((item) => `${item.title}\n${item.snippet}`).join('\n\n');
-                return results;
+    // Check if we're running locally (development mode)
+    const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocalDev) {
+        // LOCAL DEVELOPMENT: Use direct Google Custom Search API
+        console.log('🔧 Running Google Search in local development mode');
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        const cx = import.meta.env.VITE_GOOGLE_SEARCH_CX;
+        if (!apiKey || !cx) {
+            console.warn('Google Search API keys not configured for local development');
+            return `Search functionality requires API configuration. Query: "${query}"`;
+        }
+        try {
+            const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&num=3`;
+            const response = await fetch(searchUrl);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.items && data.items.length > 0) {
+                    const results = data.items.slice(0, 3).map((item) => `${item.title}\n${item.snippet}`).join('\n\n');
+                    return results;
+                }
+                else {
+                    return 'No results found.';
+                }
             }
             else {
-                return 'No results found.';
+                console.error('Google Search API error:', response.status);
+                return `Search failed with status ${response.status}. Query: "${query}"`;
             }
         }
-        throw new Error('Google search failed');
+        catch (error) {
+            console.error('Google Search error:', error);
+            return `Search error: ${error.message}. Query: "${query}"`;
+        }
     }
-    catch (error) {
-        console.error('Search error:', error);
-        return `An error occurred while searching for: "${query}". Please try again later.`;
+    else {
+        // PRODUCTION: Use Netlify function
+        console.log('🌐 Running Google Search via Netlify function');
+        try {
+            const response = await fetch('/.netlify/functions/performgooglesearch', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ query })
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Search API Error: ${errorData.error || response.statusText}`);
+            }
+            const data = await response.json();
+            return data.results || 'No search results available.';
+        }
+        catch (error) {
+            console.error('Netlify Google Search function error:', error);
+            return `Search failed: ${error.message}. Query: "${query}"`;
+        }
     }
 }
 function splitIntoSentences(text) {

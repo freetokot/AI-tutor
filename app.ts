@@ -10,7 +10,7 @@ const LLM_CONFIG = {
     model: 'models/gemini-2.5-flash',
     // systemPrompt: `Ты - вики. Мы тестируем твои возможности. Отвечай на вопросы максимально подробно, с примерами и объяснениями. Если не знаешь ответа, скажи честно, что не знаешь. Используй простой и понятный язык. Твои ответы будут озвучены tts, поэтому заменяй числа и математические действия словами. Если пользователь просит найти актуальную информацию, пользуйся инструментом google search.`,
     systemPrompt: `1. Основная роль:
-Ты — «ВИКИ», мудрая и дружелюбная ИИ-помощница и наставница. Твой собеседник — третьеклассник Андрей.
+Ты — «ВИКИ», мудрая и дружелюбная ИИ-помощница и наставница. Отвечаешь с персоналией молодой женщины. Твой собеседник — третьеклассник Андрей.
 2. Ключевая цель:
 Твоя главная задача — развивать любознательность Андрея и учить его мыслить самостоятельно. Ты помогаешь ему как в учебе, так и в познании мира вокруг.
 3. Протокол общения (Три режима ответа):
@@ -183,13 +183,15 @@ async function callGeminiAPI(prompt: string, options: {
   temperature?: number;
   useTools?: boolean;
   provider?: string;
+  useHistory?: boolean;
 } = {}) {
   const {
     model = 'models/gemini-2.5-flash',
     systemPrompt,
     temperature = 0.7,
     useTools = false,
-    provider = 'google'
+    provider = 'google',
+    useHistory = true
   } = options;
 
   // Check if we're running locally (development mode)
@@ -209,26 +211,60 @@ async function callGeminiAPI(prompt: string, options: {
       }
 
       const genAI = new GoogleGenerativeAI(apiKey);
-      const modelInstance = genAI.getGenerativeModel({
-        model: model,
-        systemInstruction: systemPrompt,
-        generationConfig: { temperature },
-        tools: useTools ? [{
-          functionDeclarations: [{
-            name: 'googleSearch',
-            description: 'Search the web for information to answer questions',
-            parameters: {
-              type: SchemaType.OBJECT,
-              properties: {
-                query: { type: SchemaType.STRING, description: 'The search query to find information' }
-              },
-              required: ['query']
-            }
-          }]
-        }] : undefined
-      });
 
-      const result = await modelInstance.generateContent(prompt);
+      // Use chat session for conversation history if enabled
+      if (useHistory && !geminiChatSession) {
+        const modelInstance = genAI.getGenerativeModel({
+          model: model,
+          systemInstruction: systemPrompt,
+          generationConfig: { temperature },
+          tools: useTools ? [{
+            functionDeclarations: [{
+              name: 'googleSearch',
+              description: 'Search the web for information to answer questions',
+              parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                  query: { type: SchemaType.STRING, description: 'The search query to find information' }
+                },
+                required: ['query']
+              }
+            }]
+          }] : undefined
+        });
+        geminiChatSession = modelInstance.startChat({
+          history: chatHistory.slice(-10).map(msg => ({
+            role: msg.role === 'assistant' ? 'model' : msg.role,
+            parts: [{ text: msg.content }]
+          }))
+        });
+      }
+
+      let result;
+      if (useHistory && geminiChatSession) {
+        result = await geminiChatSession.sendMessage(prompt);
+      } else {
+        const modelInstance = genAI.getGenerativeModel({
+          model: model,
+          systemInstruction: systemPrompt,
+          generationConfig: { temperature },
+          tools: useTools ? [{
+            functionDeclarations: [{
+              name: 'googleSearch',
+              description: 'Search the web for information to answer questions',
+              parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                  query: { type: SchemaType.STRING, description: 'The search query to find information' }
+                },
+                required: ['query']
+              }
+            }]
+          }] : undefined
+        });
+        result = await modelInstance.generateContent(prompt);
+      }
+
       const response = result.response;
 
       // Convert to the same format as Netlify function
@@ -252,11 +288,25 @@ async function callGeminiAPI(prompt: string, options: {
         throw new Error('VITE_OPENROUTER_API_KEY environment variable is required for local development');
       }
 
+      // Build messages array with conversation history
       const messages = [];
+
+      // Add system prompt if provided
       if (systemPrompt) {
         messages.push({ role: 'system', content: systemPrompt });
       }
+
+      // Add conversation history if enabled
+      if (useHistory) {
+        // Add recent messages from history (excluding system messages)
+        const recentMessages = chatHistory.slice(-10).filter(msg => msg.role !== 'system');
+        messages.push(...recentMessages);
+      }
+
+      // Add current user message
       messages.push({ role: 'user', content: prompt });
+
+      console.log('OpenRouter messages:', messages);
 
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -274,7 +324,8 @@ async function callGeminiAPI(prompt: string, options: {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`OpenRouter API Error: ${errorData.error || response.statusText}`);
+        const errorMessage = errorData.error?.message || JSON.stringify(errorData.error);
+        throw new Error(`OpenRouter API Error: ${errorMessage}`);
       }
 
       const data = await response.json();
@@ -320,7 +371,9 @@ async function callGeminiAPI(prompt: string, options: {
         model,
         systemPrompt,
         temperature,
-        useTools: provider === 'google' ? useTools : false // Only Google supports function calling
+        useTools: provider === 'google' ? useTools : false, // Only Google supports function calling
+        useHistory,
+        chatHistory: useHistory ? chatHistory.slice(-10) : []
       })
     });
 
@@ -348,13 +401,16 @@ const LLM_MODELS: Record<string, {model: string, name: string, provider: string}
     },
     'openrouter': {
         model: 'openrouter/sonoma-sky-alpha',
-        name: 'Sonoma Sky Alpha',
+        name: 'sonoma sky',
         provider: 'openrouter'
     }
 };
 
 let currentModelConfig = LLM_MODELS['gemini-default'];
-let openRouterHistory: Array<{role: string, content: string}> = [];
+
+// Unified chat history for all providers
+let chatHistory: Array<{role: string, content: string}> = [];
+let geminiChatSession: any = null; // For Gemini's native chat session
 
 const chatDiv = document.getElementById('chat') as HTMLDivElement;
 const input = document.getElementById('input') as HTMLInputElement;
@@ -376,6 +432,9 @@ sendBtn.addEventListener('click', async () => {
     // Stop any currently playing TTS and clear queue
     stopCurrentTTS();
 
+    // Add user message to chat history
+    chatHistory.push({ role: 'user', content: userMessage });
+
     addMessage('user', userMessage);
     input.value = '';
 
@@ -386,11 +445,12 @@ sendBtn.addEventListener('click', async () => {
         try {
             // Use secure Netlify function instead of direct API call
             const data = await callGeminiAPI(message, {
-                model: currentModelConfig.model,
-                systemPrompt: LLM_CONFIG.systemPrompt,
-                temperature: LLM_CONFIG.temperature,
-                useTools: currentModelConfig.provider === 'google' // Only enable tools for Google models
-            });
+            model: currentModelConfig.model,
+            systemPrompt: LLM_CONFIG.systemPrompt,
+            temperature: LLM_CONFIG.temperature,
+            useTools: currentModelConfig.provider === 'google',
+            provider: currentModelConfig.provider // <-- ADD THIS LINE
+        });
 
             // Extract the response text from the Netlify function response
             let botMessage = '';
@@ -435,6 +495,8 @@ sendBtn.addEventListener('click', async () => {
 
             // Only add message if it's not empty and not an error
             if (botMessage && botMessage.trim() && !isModelError(botMessage)) {
+                // Add bot message to chat history
+                chatHistory.push({ role: 'assistant', content: botMessage });
                 addMessage('bot', botMessage);
             } else if (botMessage && botMessage.trim()) {
                 console.warn('Model returned error message, retrying:', botMessage);
@@ -496,10 +558,9 @@ async function switchToModel(modelKey: string) {
         }
         currentModelConfig = modelConfig;
 
-        // Clear OpenRouter history when switching away from it
-        if (currentModelConfig.provider !== 'openrouter') {
-            openRouterHistory = [];
-        }
+        // Clear chat history when switching models
+        chatHistory = [];
+        geminiChatSession = null;
 
         console.log(`Switched to model: ${modelConfig.name}`);
         addMessage('bot', `Переключено на модель: ${modelConfig.name}`, true); // Skip TTS for system messages
@@ -516,7 +577,7 @@ async function createOpenRouterChat(modelConfig: any) {
         async sendMessage(message: string) {
             try {
                 // Add user message to history
-                openRouterHistory.push({ role: 'user', content: message });
+                chatHistory.push({ role: 'user', content: message });
 
                 // Build messages array with system prompt + last 10 messages from history
                 const messages = [
@@ -524,7 +585,7 @@ async function createOpenRouterChat(modelConfig: any) {
                         role: 'system',
                         content: LLM_CONFIG.systemPrompt
                     },
-                    ...openRouterHistory.slice(-10) // Keep only last 10 messages for context
+                    ...chatHistory.slice(-10) // Keep only last 10 messages for context
                 ];
 
                 const requestBody = {
@@ -558,7 +619,7 @@ async function createOpenRouterChat(modelConfig: any) {
                 const botMessage = data.choices[0].message.content || 'No response content';
 
                 // Add bot response to history
-                openRouterHistory.push({ role: 'assistant', content: botMessage });
+                chatHistory.push({ role: 'assistant', content: botMessage });
 
                 return {
                     response: {
