@@ -1,8 +1,10 @@
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import { GoogleGenAI } from '@google/genai';
-// Set your API key here (from environment or hardcoded for demo)
-// Note: For security, in production, use a backend to proxy API calls
-const API_KEY = 'AIzaSyA_at7oN4UUZe6LoZbiHzWeAEvdo2jTFVw'; // Replace with your actual Gemini API key
+// Load API keys from environment variables
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+if (!API_KEY) {
+    throw new Error('GEMINI_API_KEY environment variable is required');
+}
 const currentDate = new Date();
 // Форматируем дату для русскоязычной локали (дд.мм.гггг)
 const formattedDate = currentDate.toLocaleDateString('ru-RU');
@@ -10,34 +12,35 @@ const formattedDate = currentDate.toLocaleDateString('ru-RU');
 const LLM_CONFIG = {
     model: 'models/gemini-2.5-flash',
     // systemPrompt: `Ты - вики. Мы тестируем твои возможности. Отвечай на вопросы максимально подробно, с примерами и объяснениями. Если не знаешь ответа, скажи честно, что не знаешь. Используй простой и понятный язык. Твои ответы будут озвучены tts, поэтому заменяй числа и математические действия словами. Если пользователь просит найти актуальную информацию, пользуйся инструментом google search.`,
-    systemPrompt: `1. Роль:
-Ты — «ВИКИ», мудрый и дружелюбный ИИ-репетитор. Твой ученик — третьеклассник Андрей.
-2. Ключевая задача:
-Твоя цель — научить Андрея думать самостоятельно. Не давай готовых ответов, а объясняй, как их найти. Помогай ему разбивать сложные задачи на простые шаги и направляй его с помощью наводящих вопросов.
-3. Стиль общения:
-Краткость: Отвечай кратко и по существу. Твои ответы должны быть пригодны для озвучивания (TTS), поэтому преобразовывай числа и математические действия в слова.
-Обращение: Обращайся к пользователю по имени «Андрей», но не в каждой строке, чтобы речь звучала естественно.
-Тон: Спокойный, подбадривающий и немного игривый. Используй простые аналогии (например, деление яблок, постройка из кубиков).
-Поддержка: Всегда хвали за усилия, даже если ответ неправильный. Помогай исправлять ошибки, не ругая.
-4. Главное правило: ЗАПРЕТ НА ПРЯМЫЕ ОТВЕТЫ
-Это самое важное. Ты никогда не должна называть итоговый правильный ответ на задания из школьной программы 3 класса, даже если Андрей очень просит.
-Вместо того чтобы сказать: «Правильный ответ — 15».
-Спроси: «А давай-ка проверим. Сколько будет пять умножить на три?».
-Вместо того чтобы сказать: «Нет, в этом слове пишется буква "о"».
-Спроси: «А какое проверочное слово мы можем подобрать, чтобы узнать гласную в корне?».
-Если Андрей настаивает, мягко объясни: «Андрей, моя задача — научить тебя находить ответы самому. Готовый ответ в этом не поможет. Давай попробуем еще раз вместе!».
-5. Использование интернет-поиска:
-Ты можешь обращаться к поиску в двух случаях:
-По запросу: Если Андрей прямо просит что-то найти (например, «ВИКИ, найди, какой самый большой океан»).
-При неуверенности: Если ты не уверена в факте или правильности своего объяснения, используй поиск для проверки.
-6. Объяснение новых тем:
-Когда Андрей просит объяснить новую тему, выполни два шага:
-Дай четкое и простое объяснение своими словами.
-Придумай несколько собственных, синтезированных примеров для иллюстрации. Не бери примеры из его конкретных заданий.
-Если Андрей просит информацию, не относящуюся к учебной программе 3 класса, отвечай кратко и по существу, но так, чтобы третьеклассник понял. Не обсуждай темы 18+.
-7. Игровой режим:
-Если Андрей предлагает поиграть, это означает, что ты должна придумывать короткие задания на заданную им тему. Считай, сколько правильных ответов он дал с первого раза. После правильного ответа сразу давай следующее задание. После каждых 5 заданий спрашивай, хочет ли он продолжить.
-Дата сегодня: ${formattedDate}.`,
+    systemPrompt: `1. Основная роль:
+Ты — «ВИКИ», мудрая и дружелюбная ИИ-помощница и наставница. Твой собеседник — третьеклассник Андрей.
+2. Ключевая цель:
+Твоя главная задача — развивать любознательность Андрея и учить его мыслить самостоятельно. Ты помогаешь ему как в учебе, так и в познании мира вокруг.
+3. Протокол общения (Три режима ответа):
+Твой ответ должен соответствовать одному из трех режимов в зависимости от вопроса Андрея.
+Режим 1: Безопасность (Неподобающий контент)
+Если вопрос касается тем 18+, насилия, или чего-то небезопасного и неподобающего для ребенка:
+Мягко и вежливо откажись обсуждать тему. Не читай лекций. Просто скажи, что вы не можете это обсудить.
+Пример: «Андрей, эта тема для взрослых, давай поговорим о чем-нибудь другом» или «Я не могу ответить на этот вопрос. Может, хочешь узнать что-то еще?».
+Режим 2: Репетитор (Вопросы по школьной программе)
+Если вопрос похож на задание для 3 класса (например, посчитай 8*9, найди площадь прямоугольника, подбери проверочное слово):
+Твоя цель — помочь ему найти ответ самому. ЗАПРЕТ НА ПРЯМЫЕ ОТВЕТЫ.
+Объясняй по шагам: Разбивай сложную задачу на простые этапы.
+Задавай наводящие вопросы: Вместо ответа, задай вопрос, который подтолкнет его к правильной мысли. (Например: «Как ты думаешь, какой здесь корень слова?», «Какое действие нужно сделать первым?»).
+Хвали и поддерживай: Кратко хвали за правильные шаги. Если он ошибается, не ругай, а помоги найти ошибку. (Например: «Отличная мысль! А давай проверим вот этот шаг еще раз»).
+При настойчивости: Если Андрей просит прямой ответ, мягко объясни: «Андрей, моя задача — научить тебя находить ответы самому. Готовый ответ в этом не поможет. Давай попробуем еще раз вместе!».
+Режим 3: Энциклопедия (Вопросы про правила, факты и общие темы)
+Если вопрос касается любых других тем: о мире, событиях, хобби, науке, животных, космосе и т.д. — отвечаешь честно, подробно и интересно, чтобы удовлетворить его любопытство.
+Используй поиск: Обязательно используй инструмент googlesearch для поиска точной и актуальной информации. Поисковый запрос формулируй так, чтобы в краткой выдаче гугла была релевантная информация.
+Объясняй просто: Адаптируй найденную информацию так, чтобы она была понятна третьекласснику. Используй простые аналогии.
+Будь объективной: Предоставляй факты без личных оценок.
+4. Стиль общения:
+Краткость: Говори кратко и по существу. Ответы должны быть пригодны для озвучивания (TTS).
+Обращение: Обращайся к пользователю по имени «Андрей», но не в каждом сообщении, чтобы это звучало естественно.
+Тон: Спокойный, дружелюбный, подбадривающий и немного игривый. Не используй смайлики и эмодзи.
+5. Игровой режим:
+Если Андрей предлагает поиграть, придумай короткие задания на заданную им тему. Считай, сколько правильных ответов он дал с первого раза. После правильного ответа сразу давай следующее задание. После каждых 5 заданий спрашивай, хочет ли он продолжить.
+6. Дата сегодня: ${formattedDate}.`,
     temperature: 0.7,
     tools: [{
             googleSearch: {}, // Пустой объект означает, что инструмент включен без доп. настроек
@@ -48,6 +51,117 @@ const TTS_CONFIG = {
     temperature: 0.7,
     voiceName: 'Laomedeia',
 };
+// TTS service endpoints configuration
+const TTS_ENDPOINTS = {
+    silero: {
+        localhost: 'http://localhost:8000/synthesize/',
+        internet: 'https://your-ngrok-silero-url.ngrok.io/synthesize/' // Replace with actual ngrok URL
+    },
+    vosk: {
+        localhost: 'http://localhost:8080/synthesize/',
+        internet: 'https://celsa-noncelestial-unegregiously.ngrok-free.app/synthesize/' // Current ngrok URL
+    }
+};
+// Function to check if a service is running on localhost
+async function checkLocalhostService(url) {
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+        const response = await fetch(url, {
+            method: 'POST', // Use POST since the endpoint only accepts POST
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: 'test' }), // Send a test request
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        return response.ok;
+    }
+    catch (error) {
+        console.log(`Localhost service check failed for ${url}:`, error);
+        return false;
+    }
+}
+// Function to check if a message is a model error that should be retried
+function isModelError(message) {
+    if (!message || !message.trim())
+        return false;
+    const errorIndicators = [
+        'rate limit',
+        'quota exceeded',
+        'model overload',
+        'server error',
+        'internal error',
+        'service unavailable',
+        'temporary failure',
+        'try again',
+        'too many requests',
+        '429',
+        '500',
+        '502',
+        '503',
+        '504'
+    ];
+    const lowerMessage = message.toLowerCase();
+    return errorIndicators.some(indicator => lowerMessage.includes(indicator));
+}
+// Function to check if an error is retryable
+function isRetryableError(errorMessage) {
+    if (!errorMessage)
+        return false;
+    const retryableIndicators = [
+        'network',
+        'timeout',
+        'connection',
+        'rate limit',
+        'quota exceeded',
+        'server error',
+        'internal error',
+        'service unavailable',
+        'temporary failure',
+        'try again',
+        'too many requests',
+        '429',
+        '500',
+        '502',
+        '503',
+        '504',
+        'fetch'
+    ];
+    const lowerMessage = errorMessage.toLowerCase();
+    return retryableIndicators.some(indicator => lowerMessage.includes(indicator));
+}
+// Function to make TTS request with localhost fallback
+async function makeTTSRequest(service, text) {
+    const endpoints = TTS_ENDPOINTS[service];
+    if (!endpoints) {
+        throw new Error(`Unknown TTS service: ${service}`);
+    }
+    // First try localhost
+    console.log(`Trying localhost for ${service}: ${endpoints.localhost}`);
+    const isLocalhostRunning = await checkLocalhostService(endpoints.localhost);
+    if (isLocalhostRunning) {
+        console.log(`Using localhost for ${service}`);
+        const response = await fetch(endpoints.localhost, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        });
+        if (response.ok) {
+            return response;
+        }
+    }
+    // Fallback to internet/ngrok
+    console.log(`Localhost not available, trying internet for ${service}: ${endpoints.internet}`);
+    const response = await fetch(endpoints.internet, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+    });
+    if (!response.ok) {
+        throw new Error(`Both localhost and internet endpoints failed for ${service}`);
+    }
+    return response;
+}
 // LLM Model configurations
 const LLM_MODELS = {
     'gemini-default': {
@@ -56,16 +170,16 @@ const LLM_MODELS = {
         apiKey: API_KEY,
         provider: 'google'
     },
-    'gemini-lite': {
+    'gemini-flash-lite': {
         model: 'models/gemini-2.5-flash-lite',
-        name: 'Gemini 2.5 Flash (Lite)',
+        name: 'Gemini 2.5 Flash Lite',
         apiKey: API_KEY,
         provider: 'google'
     },
     'openrouter': {
         model: 'openrouter/sonoma-sky-alpha',
         name: 'Sonoma Sky Alpha',
-        apiKey: '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',
+        apiKey: import.meta.env.VITE_OPENROUTER_API_KEY,
         provider: 'openrouter'
     }
 };
@@ -112,48 +226,117 @@ sendBtn.addEventListener('click', async () => {
     const userMessage = input.value.trim();
     if (!userMessage)
         return;
+    // Stop any currently playing TTS and clear queue
+    stopCurrentTTS();
     addMessage('user', userMessage);
     input.value = '';
-    try {
-        const result = await chat.sendMessage(userMessage);
-        const response = result.response;
-        // Handle different response formats based on provider
-        if (currentModelConfig.provider === 'google') {
-            // Check if the model wants to use a tool
-            const functionCalls = response.functionCalls();
-            if (functionCalls && functionCalls.length > 0) {
-                console.log("Model wants to use search!");
-                // Perform the search
-                const searchResults = await performGoogleSearch(functionCalls[0].args.query);
-                // Send the search results back to the model
-                const resultWithSearch = await chat.sendMessage([{
-                        functionResponse: {
-                            name: 'googleSearch',
-                            response: {
-                                content: searchResults,
+    // Function to send message with retry logic
+    const sendMessageWithRetry = async (message, retryCount = 0) => {
+        const maxRetries = 3;
+        try {
+            const result = await chat.sendMessage(message);
+            const response = result.response;
+            // Handle different response formats based on provider
+            if (currentModelConfig.provider === 'google') {
+                // Check if the model wants to use a tool
+                const functionCalls = response.functionCalls();
+                if (functionCalls && functionCalls.length > 0) {
+                    console.log("Model wants to use search!");
+                    // Perform the search
+                    const searchResults = await performGoogleSearch(functionCalls[0].args.query);
+                    // Send the search results back to the model
+                    const resultWithSearch = await chat.sendMessage([{
+                            functionResponse: {
+                                name: 'googleSearch',
+                                response: {
+                                    content: searchResults,
+                                },
                             },
-                        },
-                    }]);
-                // Get the final response
-                const finalResponse = resultWithSearch.response;
-                const botMessage = finalResponse.text();
-                addMessage('bot', botMessage);
+                        }]);
+                    // Get the final response
+                    const finalResponse = resultWithSearch.response;
+                    const botMessage = finalResponse.text();
+                    // Only add message if it's not empty and not an error
+                    if (botMessage && botMessage.trim() && !isModelError(botMessage)) {
+                        addMessage('bot', botMessage);
+                    }
+                    else if (botMessage && botMessage.trim()) {
+                        console.warn('Model returned error message, retrying:', botMessage);
+                        if (retryCount < maxRetries) {
+                            console.log(`Retrying message (attempt ${retryCount + 1}/${maxRetries})`);
+                            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+                            return sendMessageWithRetry(message, retryCount + 1);
+                        }
+                    }
+                }
+                else {
+                    // No tool calls, just return the text response
+                    const botMessage = response.text();
+                    // Only add message if it's not empty and not an error
+                    if (botMessage && botMessage.trim() && !isModelError(botMessage)) {
+                        addMessage('bot', botMessage);
+                    }
+                    else if (botMessage && botMessage.trim()) {
+                        console.warn('Model returned error message, retrying:', botMessage);
+                        if (retryCount < maxRetries) {
+                            console.log(`Retrying message (attempt ${retryCount + 1}/${maxRetries})`);
+                            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+                            return sendMessageWithRetry(message, retryCount + 1);
+                        }
+                    }
+                    else if (!botMessage || !botMessage.trim()) {
+                        console.warn('Model returned empty message, retrying');
+                        if (retryCount < maxRetries) {
+                            console.log(`Retrying message (attempt ${retryCount + 1}/${maxRetries})`);
+                            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+                            return sendMessageWithRetry(message, retryCount + 1);
+                        }
+                    }
+                }
+            }
+            else if (currentModelConfig.provider === 'openrouter') {
+                // OpenRouter doesn't support function calls in the same way
+                const botMessage = response.text();
+                // Only add message if it's not empty and not an error
+                if (botMessage && botMessage.trim() && !isModelError(botMessage)) {
+                    addMessage('bot', botMessage);
+                }
+                else if (botMessage && botMessage.trim()) {
+                    console.warn('Model returned error message, retrying:', botMessage);
+                    if (retryCount < maxRetries) {
+                        console.log(`Retrying message (attempt ${retryCount + 1}/${maxRetries})`);
+                        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+                        return sendMessageWithRetry(message, retryCount + 1);
+                    }
+                }
+                else if (!botMessage || !botMessage.trim()) {
+                    console.warn('Model returned empty message, retrying');
+                    if (retryCount < maxRetries) {
+                        console.log(`Retrying message (attempt ${retryCount + 1}/${maxRetries})`);
+                        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+                        return sendMessageWithRetry(message, retryCount + 1);
+                    }
+                }
+            }
+        }
+        catch (error) {
+            const errorMessage = error.message;
+            // Check if this is a retryable error
+            if (isRetryableError(errorMessage) && retryCount < maxRetries) {
+                console.warn(`Network/model error, retrying: ${errorMessage}`);
+                console.log(`Retrying message (attempt ${retryCount + 1}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry for network errors
+                return sendMessageWithRetry(message, retryCount + 1);
             }
             else {
-                // No tool calls, just return the text response
-                const botMessage = response.text();
-                addMessage('bot', botMessage);
+                // Non-retryable error or max retries reached
+                console.error('Final error after retries:', errorMessage);
+                addMessage('bot', 'Извините, произошла ошибка при обработке сообщения. Попробуйте еще раз.');
             }
         }
-        else if (currentModelConfig.provider === 'openrouter') {
-            // OpenRouter doesn't support function calls in the same way
-            const botMessage = response.text();
-            addMessage('bot', botMessage);
-        }
-    }
-    catch (error) {
-        addMessage('bot', 'Error: ' + error.message);
-    }
+    };
+    // Start the message sending process
+    await sendMessageWithRetry(userMessage);
 });
 input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
@@ -163,15 +346,23 @@ input.addEventListener('keydown', (e) => {
 // LLM Model selector event listener
 llmSelect.addEventListener('change', async () => {
     const selectedModel = llmSelect.value;
-    await switchToModel(selectedModel);
+    if (selectedModel in LLM_MODELS) {
+        await switchToModel(selectedModel);
+    }
 });
 // Function to switch to a different LLM model
 async function switchToModel(modelKey) {
     try {
         const modelConfig = LLM_MODELS[modelKey];
+        if (!modelConfig) {
+            throw new Error(`Model configuration not found for: ${modelKey}`);
+        }
         currentModelConfig = modelConfig;
         if (modelConfig.provider === 'google') {
             // Use Google Gemini
+            if (!modelConfig.apiKey) {
+                throw new Error('API key is required for Google models');
+            }
             const genAI = new GoogleGenerativeAI(modelConfig.apiKey);
             const chatModel = genAI.getGenerativeModel({
                 model: modelConfig.model,
@@ -206,7 +397,7 @@ async function switchToModel(modelKey) {
             // History is maintained for OpenRouter, no need to reset
         }
         console.log(`Switched to model: ${modelConfig.name}`);
-        addMessage('bot', `Переключено на модель: ${modelConfig.name}`);
+        addMessage('bot', `Переключено на модель: ${modelConfig.name}`, true); // Skip TTS for system messages
     }
     catch (error) {
         console.error('Error switching model:', error);
@@ -270,11 +461,22 @@ async function createOpenRouterChat(modelConfig) {
     };
     return openRouterChat;
 }
-function addMessage(type, text) {
+// Global audio state management
+let currentAudio = null;
+let isTTSCancelled = false;
+function stopCurrentTTS() {
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        currentAudio = null;
+    }
+    isTTSCancelled = true;
+}
+function addMessage(type, text, skipTTS = false) {
     const msgDiv = document.createElement('div');
     msgDiv.className = `message ${type}`;
     msgDiv.innerHTML = `<span>${text}</span>`;
-    if (type === 'bot') {
+    if (type === 'bot' && !skipTTS) {
         const playBtn = document.createElement('button');
         playBtn.textContent = 'Replay';
         playBtn.addEventListener('click', () => {
@@ -289,6 +491,8 @@ function addMessage(type, text) {
 }
 async function speak(text) {
     const service = ttsSelect.value;
+    // Reset cancellation flag when starting new TTS
+    isTTSCancelled = false;
     try {
         if (service === 'gemini') {
             await speakWithGemini(text);
@@ -307,6 +511,9 @@ async function speak(text) {
         }
         else if (service === 'silero') {
             await speakWithSilero(text);
+        }
+        else if (service === 'vosk') {
+            await speakWithVosk(text);
         }
     }
     catch (error) {
@@ -591,7 +798,10 @@ async function speakWithPiper(text) {
     audio.play();
 }
 async function performGoogleSearch(query) {
-    const cx = 'b5df8993e2ba640ef';
+    const cx = import.meta.env.VITE_CX;
+    if (!cx) {
+        return 'Google Search CX not configured.';
+    }
     const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${API_KEY}&cx=${cx}&q=${encodeURIComponent(query)}`;
     try {
         const response = await fetch(searchUrl);
@@ -620,6 +830,11 @@ function splitIntoSentences(text) {
 async function speakWithSilero(text) {
     try {
         console.log("Processing text with Silero:", text);
+        // Check if TTS was cancelled before starting
+        if (isTTSCancelled) {
+            console.log("TTS was cancelled, skipping Silero processing");
+            return;
+        }
         // Split text into sentences
         const sentences = splitIntoSentences(text);
         if (sentences.length === 0) {
@@ -627,50 +842,251 @@ async function speakWithSilero(text) {
             return;
         }
         console.log(`Processing ${sentences.length} sentence(s)...`);
-        // Process each sentence sequentially
-        for (let i = 0; i < sentences.length; i++) {
-            const sentence = sentences[i].trim();
-            console.log(`Processing sentence ${i + 1}: "${sentence}"`);
+        // Queue to hold audio blobs as they become ready
+        const audioQueue = [];
+        let isPlaying = false;
+        let currentIndex = 0;
+        let nextRequestIndex = 0;
+        let allRequestsSent = false;
+        // Function to play next audio in queue
+        const playNextAudio = async () => {
+            // Check if cancelled before playing
+            if (isTTSCancelled) {
+                console.log("TTS cancelled, stopping playback");
+                return;
+            }
+            if (isPlaying || currentIndex >= audioQueue.length) {
+                return;
+            }
+            isPlaying = true;
+            const audioBlob = audioQueue[currentIndex];
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+            currentAudio = audio; // Set global audio reference
+            console.log(`Playing audio segment ${currentIndex + 1}/${sentences.length}`);
+            // Play current segment
+            audio.onended = () => {
+                console.log(`Finished playing audio segment ${currentIndex + 1}`);
+                URL.revokeObjectURL(audioUrl);
+                currentAudio = null; // Clear global reference
+                currentIndex++;
+                isPlaying = false;
+                // Immediately try to play the next available segment
+                playNextAudio();
+            };
+            audio.onerror = (e) => {
+                console.error(`Error playing audio segment ${currentIndex + 1}`, e);
+                URL.revokeObjectURL(audioUrl);
+                currentAudio = null; // Clear global reference
+                currentIndex++;
+                isPlaying = false;
+                playNextAudio(); // Try next one even if this fails
+            };
             try {
-                const response = await fetch('http://localhost:8000/synthesize/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ text: sentence }),
-                });
+                await audio.play();
+            }
+            catch (e) {
+                console.error(`audio.play() failed for segment ${currentIndex + 1}`, e);
+                currentAudio = null; // Clear global reference
+                isPlaying = false;
+                currentIndex++;
+                playNextAudio();
+            }
+        };
+        // Function to send next synthesis request
+        const sendNextRequest = async () => {
+            // Check if cancelled before sending request
+            if (isTTSCancelled) {
+                console.log("TTS cancelled, stopping request processing");
+                return;
+            }
+            if (nextRequestIndex >= sentences.length) {
+                allRequestsSent = true;
+                return; // All requests sent
+            }
+            const sentenceIndex = nextRequestIndex;
+            nextRequestIndex++;
+            try {
+                console.log(`Starting synthesis for sentence ${sentenceIndex + 1}: "${sentences[sentenceIndex].trim()}"`);
+                const response = await makeTTSRequest('silero', sentences[sentenceIndex].trim());
                 if (!response.ok) {
                     const errorData = await response.json();
-                    console.error(`Failed to process sentence ${i + 1}:`, errorData.detail);
-                    continue; // Skip this sentence and continue with others
+                    console.error(`Failed to synthesize sentence ${sentenceIndex + 1}:`, errorData.detail);
                 }
-                const audioBlob = await response.blob();
-                const audioUrl = URL.createObjectURL(audioBlob);
-                const audio = new Audio(audioUrl);
-                // Play audio and wait for it to finish before proceeding to next sentence
-                await new Promise((resolve, reject) => {
-                    audio.onended = () => resolve();
-                    audio.onerror = () => {
-                        console.error(`Error playing audio for sentence ${i + 1}`);
-                        resolve(); // Continue even if playback fails
-                    };
-                    audio.play().catch(() => {
-                        console.error(`Failed to play audio for sentence ${i + 1}`);
-                        resolve(); // Continue even if play fails
-                    });
-                });
-                // Clean up the blob URL
-                URL.revokeObjectURL(audioUrl);
+                else {
+                    const audioBlob = await response.blob();
+                    console.log(`Synthesis completed for sentence ${sentenceIndex + 1}, adding to queue`);
+                    audioQueue.push(audioBlob);
+                    if (!isPlaying && !isTTSCancelled) {
+                        playNextAudio();
+                    }
+                }
             }
             catch (error) {
-                console.error(`Error processing sentence ${i + 1}:`, error);
-                continue; // Continue with next sentence
+                console.error(`Error synthesizing sentence ${sentenceIndex + 1}:`, error);
             }
-        }
-        console.log("All sentences processed successfully");
+            finally {
+                // Immediately send the next request if not cancelled
+                if (!isTTSCancelled) {
+                    sendNextRequest();
+                }
+            }
+        };
+        // Start the process
+        sendNextRequest();
+        // Wait for all audio to be played
+        await new Promise(resolve => {
+            const checkCompletion = () => {
+                if (isTTSCancelled) {
+                    console.log("TTS cancelled, resolving early");
+                    resolve();
+                    return;
+                }
+                if (allRequestsSent && currentIndex >= sentences.length && !isPlaying) {
+                    console.log("All audio segments processed and played successfully");
+                    resolve();
+                }
+                else {
+                    setTimeout(checkCompletion, 100);
+                }
+            };
+            checkCompletion();
+        });
     }
     catch (error) {
         console.error('Error in Silero TTS processing:', error);
+        throw error;
+    }
+}
+async function speakWithVosk(text) {
+    try {
+        console.log("Processing text with Vosk:", text);
+        // Check if TTS was cancelled before starting
+        if (isTTSCancelled) {
+            console.log("TTS was cancelled, skipping Vosk processing");
+            return;
+        }
+        // Split text into sentences
+        const sentences = splitIntoSentences(text);
+        if (sentences.length === 0) {
+            console.warn("No valid sentences found in text");
+            return;
+        }
+        console.log(`Processing ${sentences.length} sentence(s)...`);
+        // Queue to hold audio blobs as they become ready
+        const audioQueue = [];
+        let isPlaying = false;
+        let currentIndex = 0;
+        let nextRequestIndex = 0;
+        let allRequestsSent = false;
+        // Function to play next audio in queue
+        const playNextAudio = async () => {
+            // Check if cancelled before playing
+            if (isTTSCancelled) {
+                console.log("TTS cancelled, stopping playback");
+                return;
+            }
+            if (isPlaying || currentIndex >= audioQueue.length) {
+                return;
+            }
+            isPlaying = true;
+            const audioBlob = audioQueue[currentIndex];
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+            currentAudio = audio; // Set global audio reference
+            console.log(`Playing audio segment ${currentIndex + 1}/${sentences.length}`);
+            // Play current segment
+            audio.onended = () => {
+                console.log(`Finished playing audio segment ${currentIndex + 1}`);
+                URL.revokeObjectURL(audioUrl);
+                currentAudio = null; // Clear global reference
+                currentIndex++;
+                isPlaying = false;
+                // Immediately try to play the next available segment
+                playNextAudio();
+            };
+            audio.onerror = (e) => {
+                console.error(`Error playing audio segment ${currentIndex + 1}`, e);
+                URL.revokeObjectURL(audioUrl);
+                currentAudio = null; // Clear global reference
+                currentIndex++;
+                isPlaying = false;
+                playNextAudio(); // Try next one even if this fails
+            };
+            try {
+                await audio.play();
+            }
+            catch (e) {
+                console.error(`audio.play() failed for segment ${currentIndex + 1}`, e);
+                currentAudio = null; // Clear global reference
+                isPlaying = false;
+                currentIndex++;
+                playNextAudio();
+            }
+        };
+        // Function to send next synthesis request
+        const sendNextRequest = async () => {
+            // Check if cancelled before sending request
+            if (isTTSCancelled) {
+                console.log("TTS cancelled, stopping request processing");
+                return;
+            }
+            if (nextRequestIndex >= sentences.length) {
+                allRequestsSent = true;
+                return; // All requests sent
+            }
+            const sentenceIndex = nextRequestIndex;
+            nextRequestIndex++;
+            try {
+                console.log(`Starting synthesis for sentence ${sentenceIndex + 1}: "${sentences[sentenceIndex].trim()}"`);
+                const response = await makeTTSRequest('vosk', sentences[sentenceIndex].trim());
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error(`Failed to synthesize sentence ${sentenceIndex + 1}:`, errorData.detail);
+                }
+                else {
+                    const audioBlob = await response.blob();
+                    console.log(`Synthesis completed for sentence ${sentenceIndex + 1}, adding to queue`);
+                    audioQueue.push(audioBlob);
+                    if (!isPlaying && !isTTSCancelled) {
+                        playNextAudio();
+                    }
+                }
+            }
+            catch (error) {
+                console.error(`Error synthesizing sentence ${sentenceIndex + 1}:`, error);
+            }
+            finally {
+                // Immediately send the next request if not cancelled
+                if (!isTTSCancelled) {
+                    sendNextRequest();
+                }
+            }
+        };
+        // Start the process
+        sendNextRequest();
+        // Wait for all audio to be played
+        await new Promise(resolve => {
+            const checkCompletion = () => {
+                if (isTTSCancelled) {
+                    console.log("TTS cancelled, resolving early");
+                    resolve();
+                    return;
+                }
+                // We check against sentences.length because some requests might fail, but we still need to know when we're done.
+                if (allRequestsSent && currentIndex >= sentences.length && !isPlaying) {
+                    console.log("All audio segments processed and played successfully");
+                    resolve();
+                }
+                else {
+                    setTimeout(checkCompletion, 100);
+                }
+            };
+            checkCompletion();
+        });
+    }
+    catch (error) {
+        console.error('Error in Vosk TTS processing:', error);
         throw error;
     }
 }
