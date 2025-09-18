@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Teacher VIKI</title>
+    <style>
+        /* --- General Styling & Variables --- */
+        :root {
+            --body-bg: #f0f2f5;
+            --chat-bg: #ffffff;
+            --settings-bg: #f9f9f9;
+            --border-color: #e0e0e0;
+            --user-msg-bg: #0084ff;
+            --user-msg-text: #ffffff;
+            --bot-msg-bg: #e4e6eb;
+            --bot-msg-text: #000000;
+            --input-bg: #f0f2f5;
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            font-family: var(--font-family);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            background-color: var(--body-bg);
+            overflow: hidden; /* Prevents body scroll when settings are open */
+        }
+
+        /* --- Settings Panel --- */
+        #settings {
+            width: 280px;
+            padding: 20px;
+            border-right: 1px solid var(--border-color);
+            background: var(--settings-bg);
+            transition: transform 0.3s ease-in-out;
+            box-sizing: border-box;
+        }
+
+        #settings h2 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        #settings label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        #settings select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+            background-color: white;
+        }
+
+        #settings-header {
+            display: none; /* Hidden by default, shown on mobile */
+            justify-content: flex-end;
+            margin-bottom: 20px;
+        }
+
+        #close-settings {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        /* --- Main Chat Area --- */
+        #main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--chat-bg);
+        }
+
+        #main-header {
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #main-header h1 {
+            font-size: 1.5em;
+            margin: 0;
+        }
+
+        #settings-button {
+            display: none; /* Hidden by default, shown on mobile */
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* --- Chat Window --- */
+        #chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .message {
+            display: flex;
+            flex-direction: column;
+            max-width: 70%;
+            padding: 10px 15px;
+            border-radius: 18px;
+            line-height: 1.4;
+        }
+
+        .user {
+            align-self: flex-end;
+            background-color: var(--user-msg-bg);
+            color: var(--user-msg-text);
+            border-bottom-right-radius: 4px;
+        }
+
+        .bot {
+            align-self: flex-start;
+            background-color: var(--bot-msg-bg);
+            color: var(--bot-msg-text);
+            border-bottom-left-radius: 4px;
+        }
+
+        /* --- Input Area --- */
+        .input-row {
+            display: flex;
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--chat-bg);
+        }
+
+        #input {
+            flex: 1;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 20px;
+            background-color: var(--input-bg);
+            font-size: 1em;
+        }
+
+        #input:focus {
+            outline: none;
+        }
+
+        #send {
+            padding: 10px 20px;
+            margin-left: 10px;
+            border: none;
+            border-radius: 20px;
+            background-color: #007bff;
+            color: white;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        #send:hover {
+            background-color: #0056b3;
+        }
+
+        /* --- Progress Bar --- */
+        #progress-container {
+            display: none;
+            margin-top: 20px;
+        }
+        #download-progress {
+            width: 100%;
+        }
+
+        /* --- Responsive Design for Phone Screens --- */
+        @media (max-width: 768px) {
+            #settings {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100%;
+                z-index: 1000;
+                transform: translateX(-100%);
+                border-right: 1px solid var(--border-color);
+            }
+
+            #settings.open {
+                transform: translateX(0);
+                box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            }
+
+            #settings-header, #settings-button {
+                display: flex;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Settings Panel -->
+    <div id="settings">
+        <div id="settings-header">
+            <button id="close-settings">&times;</button>
+        </div>
+        <h2>Settings</h2>
+        <label for="llm-model">AI Model:</label>
+        <select id="llm-model">
+            <option value="gemini-default">Gemini (default)</option>
+            <option value="gemini-lite">Gemini Lite</option>
+            <option value="openrouter">Sonoma Sky Alpha</option>
+        </select>
+        <br><br>
+        <label for="tts-service">Voice Model:</label>
+        <select id="tts-service">
+            <option value="vosk">Vosk</option>
+            <option value="silero">Silero</option>
+            <option value="gemini">Gemini TTS</option>
+            <option value="google-cloud">Google Cloud TTS</option>
+            <option value="piper">Local Piper</option>
+        </select>
+        <div id="progress-container">
+            <progress id="download-progress" value="0" max="100"></progress>
+            <div id="progress-text">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Main Chat Content -->
+    <div id="main">
+        <header id="main-header">
+            <h1>AI Assistant VIKI</h1>
+            <button id="settings-button">Settings</button>
+        </header>
+        <div id="chat">
+            <!-- Example Messages -->
+            <div class="message bot">Hello! How can I help you today?</div>
+            <div class="message user">Hi! I have a question about web development.</div>
+        </div>
+        <div class="input-row">
+            <input type="text" id="input" placeholder="Enter a message...">
+            <button id="send">Send</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.17.1/ort.min.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/gh/Mintplex-Labs/piper-tts-web@main/src/piper.js"></script>
+    <script type="module" src="https://piper.wide.video/piper_phonemize.js"></script>
+    <script type="module" src="/app.ts"></script>
+
+    <!-- JavaScript for Mobile Settings Toggle -->
+    <script>
+        const settingsPanel = document.getElementById('settings');
+        const settingsButton = document.getElementById('settings-button');
+        const closeButton = document.getElementById('close-settings');
+
+        settingsButton.addEventListener('click', () => {
+            settingsPanel.classList.add('open');
+        });
+
+        closeButton.addEventListener('click', () => {
+            settingsPanel.classList.remove('open');
+        });
+    </script>
+</body>
+</html>

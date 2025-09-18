@@ -1,0 +1,25 @@
+{
+  "name": "ai-tutor",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "serve": "http-server",
+    "dev": "vite"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@types/node": "^24.4.0",
+    "http-server": "^14.1.1",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.5"
+  },
+  "dependencies": {
+    "@google/genai": "^1.19.0",
+    "dotenv": "^17.2.2"
+  },
+  "description": ""
+}
