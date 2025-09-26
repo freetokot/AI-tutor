@@ -97,9 +97,9 @@ function isModelError(message: string): boolean {
         'temporary failure',
         'try again',
         'too many requests',
-        '429',
-        '500',
-        '502',
+        //'429',
+        //'500',
+        //'502',
         '503',
         '504'
     ];
@@ -394,14 +394,19 @@ const LLM_MODELS: Record<string, {model: string, name: string, provider: string}
         name: 'Gemini 2.5 Flash',
         provider: 'google'
     },
-    'gemini-flash-lite': {
+    'gemini-lite': {
         model: 'models/gemini-2.5-flash-lite',
         name: 'Gemini 2.5 Flash Lite',
         provider: 'google'
     },
+    'GPT-OSS': {
+        model: 'openai/gpt-oss-120b:free',
+        name: 'GPT-OSS',
+        provider: 'openrouter'
+    },
     'openrouter': {
-        model: 'openrouter/sonoma-sky-alpha',
-        name: 'Sonoma Sky',
+        model: 'x-ai/grok-4-fast:free',
+        name: 'Grok4',
         provider: 'openrouter'
     }
 };
