@@ -779,32 +779,48 @@ async function speakWithGemini(text: string) {
             // PRODUCTION: Use Netlify function
             console.log('🌐 Running Gemini TTS via Netlify function');
 
-            const response = await fetch('/.netlify/functions/gemini-tts', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    text: text,
-                    voiceName: TTS_CONFIG.voiceName,
-                    temperature: TTS_CONFIG.temperature
-                })
-            });
+            // Add timeout handling for long-running TTS requests
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 70000); // 70 seconds timeout
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Gemini TTS Netlify function error:', errorData);
-                throw new Error(`TTS API Error: ${response.statusText}`);
+            try {
+                const response = await fetch('/.netlify/functions/gemini-tts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        voiceName: TTS_CONFIG.voiceName,
+                        temperature: TTS_CONFIG.temperature
+                    }),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('Gemini TTS Netlify function error:', errorData);
+                    throw new Error(`TTS API Error: ${response.statusText}`);
+                }
+
+                // Get audio blob from response
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const audio = new Audio(audioUrl);
+                audio.play();
+
+                // Clean up the URL after playing
+                audio.onended = () => URL.revokeObjectURL(audioUrl);
+            } catch (fetchError) {
+                clearTimeout(timeoutId);
+                if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+                    console.error('Gemini TTS request timed out after 70 seconds');
+                    throw new Error('TTS request timed out. The service may be busy.');
+                }
+                throw fetchError;
             }
-
-            // Get audio blob from response
-            const audioBlob = await response.blob();
-            const audioUrl = URL.createObjectURL(audioBlob);
-            const audio = new Audio(audioUrl);
-            audio.play();
-
-            // Clean up the URL after playing
-            audio.onended = () => URL.revokeObjectURL(audioUrl);
         }
     } catch (error) {
         console.error('Gemini TTS error:', error);
