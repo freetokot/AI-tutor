@@ -236,8 +236,9 @@ async function callGeminiAPI(prompt: string, options: {
             }]
           }] : undefined
         });
+        const historyForSession = chatHistory.slice(0, -1);
         geminiChatSession = modelInstance.startChat({
-          history: chatHistory.slice(-10).map(msg => ({
+          history: historyForSession.slice(-10).map(msg => ({
             role: msg.role === 'assistant' ? 'model' : msg.role,
             parts: [{ text: msg.content }]
           }))
@@ -307,8 +308,7 @@ async function callGeminiAPI(prompt: string, options: {
         messages.push(...recentMessages);
       }
 
-      // Add current user message
-      messages.push({ role: 'user', content: prompt });
+      // The chatHistory already contains the current user message, so we don't need to add it again.
 
       console.log('OpenRouter messages:', messages);
 
