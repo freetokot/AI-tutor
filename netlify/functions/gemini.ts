@@ -77,12 +77,12 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     }
 
     // Add current user message
-    geminiRequestBody.contents.push({
-      role: 'user',
-      parts: [{
-        text: prompt
-      }]
-    });
+    //geminiRequestBody.contents.push({
+    //  role: 'user',
+    //  parts: [{
+    //    text: prompt
+    //  }]
+    //});
 
     // 5. Make the request to Gemini API
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`, {
