@@ -2,8 +2,5 @@
   publish = "dist"
   command = "npm run build"
 
-[functions]
-  timeout = 30
-
 [functions.gemini-tts]
   timeout = 60
