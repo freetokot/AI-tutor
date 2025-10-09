@@ -409,13 +409,13 @@ const LLM_MODELS: Record<string, {model: string, name: string, provider: string}
         provider: 'google'
     },
     'GPT-OSS': {
-        model: 'openai/gpt-oss-120b:free',
+        model: 'openai/gpt-oss-20b:free',
         name: 'GPT-OSS',
         provider: 'openrouter'
     },
-    'openrouter': {
-        model: 'x-ai/grok-4-fast:free',
-        name: 'Grok4',
+    'Longcat': {
+        model: 'meituan/longcat-flash-chat:free',
+        name: 'LongCat',
         provider: 'openrouter'
     }
 };

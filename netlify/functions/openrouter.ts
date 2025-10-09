@@ -42,10 +42,10 @@ const handler: Handler = async (event: HandlerEvent, context: HandlerContext) =>
     }
 
     // Add current user message
-    openRouterMessages.push({
-      role: 'user',
-      content: prompt
-    });
+    //openRouterMessages.push({
+    //  role: 'user',
+    //  content: prompt
+    //});
 
     const openRouterRequestBody = {
       model: model,
