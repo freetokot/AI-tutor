@@ -193,6 +193,7 @@ async function callGeminiAPI(prompt: string, options: {
   useTools?: boolean;
   provider?: string;
   useHistory?: boolean;
+  onDelta?: (fullText: string) => void; // стриминг: полный накопленный текст на каждый чанк
 } = {}) {
   const {
     model = 'models/gemini-2.5-flash',
@@ -200,7 +201,8 @@ async function callGeminiAPI(prompt: string, options: {
     temperature = 0.7,
     useTools = false,
     provider = 'google',
-    useHistory = true
+    useHistory = true,
+    onDelta
   } = options;
 
   // Spark gateway (DGX): OpenAI-совместимый /v1/chat/completions напрямую из браузера
@@ -218,14 +220,38 @@ async function callGeminiAPI(prompt: string, options: {
     const response = await fetch(gatewayBase() + '/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, temperature, messages })
+      body: JSON.stringify({ model, temperature, messages, stream: true })
     });
-    if (!response.ok) {
-      const errText = await response.text();
+    if (!response.ok || !response.body) {
+      const errText = await response.text().catch(() => '');
       throw new Error(`Spark gateway error: ${response.status} ${errText.slice(0, 200)}`);
     }
-    const data = await response.json();
-    const text = data?.choices?.[0]?.message?.content ?? '';
+    // SSE-стрим: data: {"choices":[{"delta":{"content":"..."}}]}
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let text = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf('\n')) !== -1) {
+        const line = buf.slice(0, idx).trim();
+        buf = buf.slice(idx + 1);
+        if (!line.startsWith('data:')) continue;
+        const payload = line.slice(5).trim();
+        if (payload === '[DONE]') continue;
+        try {
+          const chunk = JSON.parse(payload);
+          const delta = chunk?.choices?.[0]?.delta?.content;
+          if (typeof delta === 'string' && delta) {
+            text += delta;
+            onDelta?.(text);
+          }
+        } catch (_) { /* неполный/битый чанк — пропускаем */ }
+      }
+    }
     // Оборачиваем в Gemini-подобную форму — остальной код не меняется
     return { candidates: [{ content: { parts: [{ text }] } }] };
   }
@@ -492,15 +518,39 @@ sendBtn.addEventListener('click', async () => {
     // Function to send message with retry logic using secure Netlify function
     const sendMessageWithRetry = async (message: string, retryCount = 0): Promise<void> => {
         const maxRetries = 3;
+        let streamDiv: HTMLDivElement | null = null;
 
         try {
+            // Spark: стримим SSE и параллельно озвучиваем предложения по мере генерации
+            const isSpark = currentModelConfig.provider === 'spark';
+            const splitter = isSpark ? makeStreamSplitter() : null;
+            if (isSpark) {
+                isTTSCancelled = false; // новый ответ — очередь снова работает
+                ttsStreamId++;          // синтез предыдущего ответа больше не актуален
+                streamDiv = document.createElement('div');
+                streamDiv.className = 'message bot';
+                streamDiv.innerHTML = '<span>…</span>';
+                chatDiv.appendChild(streamDiv);
+                chatDiv.scrollTop = chatDiv.scrollHeight;
+            }
+
             // Use secure Netlify function instead of direct API call
             const data = await callGeminiAPI(message, {
             model: currentModelConfig.model,
             systemPrompt: LLM_CONFIG.systemPrompt,
             temperature: LLM_CONFIG.temperature,
             useTools: currentModelConfig.provider === 'google',
-            provider: currentModelConfig.provider // <-- ADD THIS LINE
+            provider: currentModelConfig.provider, // <-- ADD THIS LINE
+            onDelta: splitter ? (full: string) => {
+                splitter.feed(full);
+                const part = splitter.render();
+                if (part && streamDiv) {
+                    const span = streamDiv.querySelector('span');
+                    if (span) span.textContent += part;
+                    splitter.markRendered(part.length);
+                    chatDiv.scrollTop = chatDiv.scrollHeight;
+                }
+            } : undefined
         });
 
             // Extract the response text from the Netlify function response
@@ -553,14 +603,38 @@ sendBtn.addEventListener('click', async () => {
                 botMessage = dualOutput.show;
             }
 
+            // Spark: финализация стрима — хвост speak в очередь, Replay на уже отрисованном div
+            if (splitter) {
+                const tail = splitter.flush();
+                if (tail.trim()) enqueueSparkTTS(tail);
+                const streamed = splitter.result();
+                if (streamed) {
+                    speakMessage = streamed.speak;
+                    botMessage = streamed.show;
+                }
+                if (streamDiv) {
+                    const span = streamDiv.querySelector('span');
+                    if (span) span.textContent = botMessage;
+                    if (botMessage && botMessage.trim() && !isModelError(botMessage)) {
+                        const playBtn = document.createElement('button');
+                        playBtn.textContent = 'Replay';
+                        playBtn.addEventListener('click', () => speak(speakMessage));
+                        streamDiv.appendChild(playBtn);
+                    }
+                }
+            }
+
             // Only add message if it's not empty and not an error
             if (botMessage && botMessage.trim() && !isModelError(botMessage)) {
                 // Add bot message to chat history (raw JSON сохраняет формат)
                 chatHistory.push({ role: 'assistant', content: rawBotMessage });
-                addMessage('bot', botMessage, false, speakMessage);
+                if (!splitter) {
+                    addMessage('bot', botMessage, false, speakMessage);
+                }
             } else if (botMessage && botMessage.trim()) {
                 console.warn('Model returned error message, retrying:', botMessage);
                 if (retryCount < maxRetries) {
+                    streamDiv?.remove(); streamDiv = null;
                     console.log(`Retrying message (attempt ${retryCount + 1}/${maxRetries})`);
                     await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
                     return sendMessageWithRetry(message, retryCount + 1);
@@ -568,6 +642,7 @@ sendBtn.addEventListener('click', async () => {
             } else if (!botMessage || !botMessage.trim()) {
                 console.warn('Model returned empty message, retrying');
                 if (retryCount < maxRetries) {
+                    streamDiv?.remove(); streamDiv = null;
                     console.log(`Retrying message (attempt ${retryCount + 1}/${maxRetries})`);
                     await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
                     return sendMessageWithRetry(message, retryCount + 1);
@@ -575,6 +650,7 @@ sendBtn.addEventListener('click', async () => {
             }
 
         } catch (error) {
+            streamDiv?.remove(); streamDiv = null;
             const errorMessage = (error as Error).message;
 
             // Check if this is a retryable error
@@ -701,13 +777,54 @@ async function createOpenRouterChat(modelConfig: any) {
 let currentAudio: HTMLAudioElement | null = null;
 let isTTSCancelled = false;
 
+// Очередь озвучки по предложениям: TTS запрашивается параллельно с генерацией LLM,
+// воспроизведение строго последовательное. stopCurrentTTS() опустошает очередь.
+interface TTSQueueItem { text: string; audioUrl: string; audio: HTMLAudioElement; }
+const ttsQueue: TTSQueueItem[] = [];
+let ttsPlaying = false;
+// Поколение очереди: stopCurrentTTS() и каждый новый стрим инкрементируют его,
+// просроченные результаты синтеза отбрасываются (иначе предложение старого
+// ответа может влезть в очередь нового).
+let ttsStreamId = 0;
+
 function stopCurrentTTS() {
+    isTTSCancelled = true;
+    ttsStreamId++;
+    ttsQueue.length = 0; // опустошить очередь — ничего дальше не прозвучит
     if (currentAudio) {
         currentAudio.pause();
         currentAudio.currentTime = 0;
         currentAudio = null;
     }
-    isTTSCancelled = true;
+    ttsPlaying = false;
+}
+
+function enqueueSparkTTS(text: string, streamId: number = ttsStreamId) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    // Синтезируем сразу (параллельно с генерацией), в очередь — по завершении предыдущего
+    speakWithSpark(trimmed).then(({ audioUrl, audio }) => {
+        if (isTTSCancelled || streamId !== ttsStreamId) { URL.revokeObjectURL(audioUrl); return; }
+        ttsQueue.push({ text: trimmed, audioUrl, audio });
+        pumpTTSQueue();
+    }).catch(err => console.warn('TTS queue: синтез не удался:', err));
+}
+
+function pumpTTSQueue() {
+    if (ttsPlaying || isTTSCancelled) return;
+    const item = ttsQueue.shift();
+    if (!item) { currentAudio = null; return; }
+    ttsPlaying = true;
+    currentAudio = item.audio;
+    const done = () => {
+        URL.revokeObjectURL(item.audioUrl);
+        ttsPlaying = false;
+        currentAudio = null;
+        pumpTTSQueue();
+    };
+    item.audio.onended = done;
+    item.audio.onerror = done;
+    item.audio.play().catch(done);
 }
 
 // Извлекает двойной вывод LLM: {"speak": "...", "show": "..."}
@@ -726,6 +843,65 @@ function parseDualOutput(raw: string): { speak: string; show: string } | null {
         }
     } catch (_) { /* не JSON — обычный текст, вернём null */ }
     return null;
+}
+
+// Инкрементальный разбор {"speak","show"} из частичного JSON, приходящего стримом.
+// По мере генерации отдаёт завершённые предложения speak в TTS-очередь и часть show на рендер.
+function makeStreamSplitter() {
+    let spokenLen = 0;  // сколько символов speak уже отправлено в TTS
+    let shownLen = 0;   // сколько символов show уже отрисовано
+    let lastSpeak = '';
+    let lastShow = '';
+
+    // JSON.parse по частичному тексту: закрываем кавычку/скобку и пробуем
+    function extractPartial(raw: string): { speak: string; show: string } | null {
+        const start = raw.indexOf('{');
+        if (start === -1) return null;
+        const base = raw.slice(start);
+        for (const attempt of [base, base + '"', base + '"}']) {
+            try {
+                const obj = JSON.parse(attempt);
+                if (obj && typeof obj.speak === 'string' && typeof obj.show === 'string') {
+                    return { speak: obj.speak, show: obj.show };
+                }
+            } catch (_) { /* пробуем следующий вариант */ }
+        }
+        return null;
+    }
+
+    return {
+        // Вызывается на каждый SSE-чанк с полным накопленным текстом
+        feed(raw: string) {
+            const partial = extractPartial(raw);
+            if (!partial) return;
+            lastSpeak = partial.speak;
+            lastShow = partial.show;
+            const pending = partial.speak.slice(spokenLen);
+            // Завершённые предложения: терминатор, за которым пробел (не конец частичного
+            // текста — иначе можно отрезать "3." от "3.14"). Хвост уйдёт в TTS при финализации.
+            const re = /[\s\S]*?[.!?…]+(?=\s)/g;
+            let done = '';
+            let m: RegExpExecArray | null;
+            let lastEnd = 0;
+            while ((m = re.exec(pending)) !== null) { done = m[0]; lastEnd = re.lastIndex; }
+            if (done) {
+                spokenLen += lastEnd;
+                enqueueSparkTTS(done);
+            }
+        },
+        // Новая часть show для рендера
+        render(): string { return lastShow.slice(shownLen); },
+        markRendered(n: number) { shownLen += n; },
+        // Хвост speak, не отправленный в очередь (последнее предложение без пробела после)
+        flush(): string {
+            const tail = lastSpeak.slice(spokenLen);
+            spokenLen = lastSpeak.length;
+            return tail;
+        },
+        result(): { speak: string; show: string } | null {
+            return (lastSpeak || lastShow) ? { speak: lastSpeak, show: lastShow } : null;
+        }
+    };
 }
 
 function addMessage(type: string, text: string, skipTTS: boolean = false, speakOverride?: string) {
@@ -769,7 +945,14 @@ async function speak(text: string) {
         } else if (service === 'vosk') {
             await speakWithVosk(text);
         } else if (service === 'spark') {
-            await speakWithSpark(text);
+            // Ручной Replay вне очереди: глушим очередь и играем сразу
+            ttsQueue.length = 0;
+            ttsPlaying = false;
+            if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+            const { audioUrl, audio } = await speakWithSpark(text);
+            currentAudio = audio;
+            audio.onended = () => { URL.revokeObjectURL(audioUrl); if (currentAudio === audio) currentAudio = null; };
+            audio.play().catch(() => {});
         }
     } catch (error) {
         console.error('Speech synthesis error:', error);
@@ -784,6 +967,19 @@ async function speak(text: string) {
 const GATEWAY_HTTPS_URL = 'https://dig-investment-satisfy-pencil.trycloudflare.com';
 function gatewayBase(): string {
     return location.protocol === 'https:' ? GATEWAY_HTTPS_URL : 'http://192.168.1.201:8000';
+}
+
+// Прогрев qwen-TTS при открытии страницы: модель грузится ~30 с, делаем это заранее,
+// пока пользователь печатает. Гейтвей проксирует /admin/load на TTS-сервер (:8102
+// браузеру недоступен — mixed content + CORS).
+if (ttsSelect.value === 'spark') {
+    fetch(gatewayBase() + '/admin/load', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ engine: 'qwen' })
+    }).then(r => r.json())
+      .then((r: { ok?: boolean; loaded?: boolean }) => console.log('TTS warmup:', r))
+      .catch(() => {});
 }
 
 async function speakWithSpark(text: string) {
@@ -811,9 +1007,8 @@ async function speakWithSpark(text: string) {
     const audioBlob = await response.blob();
     const audioUrl = URL.createObjectURL(audioBlob);
     const audio = new Audio(audioUrl);
-    currentAudio = audio;
-    audio.play();
-    audio.onended = () => URL.revokeObjectURL(audioUrl);
+    // Воспроизведением управляет очередь (enqueueSparkTTS/pumpTTSQueue)
+    return { audioUrl, audio };
 }
 
 async function speakWithGemini(text: string) {
