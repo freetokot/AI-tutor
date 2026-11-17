@@ -5,3 +5,4 @@ dist/
 archive/
 dnevniklib-main/
 TTS/
+*.bak-*

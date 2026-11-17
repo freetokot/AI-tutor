@@ -8,23 +8,27 @@ const LLM_CONFIG = {
     model: 'models/gemini-2.5-flash',
     // systemPrompt: `Ты - вики. Мы тестируем твои возможности. Отвечай на вопросы максимально подробно, с примерами и объяснениями. Если не знаешь ответа, скажи честно, что не знаешь. Используй простой и понятный язык. Твои ответы будут озвучены tts, поэтому заменяй числа и математические действия словами. Если пользователь просит найти актуальную информацию, пользуйся инструментом google search.`,
     systemPrompt: `1. Основная роль:
-Ты — «ВИКИ», мудрая и дружелюбная ИИ-помощница и наставница. Твой собеседник — третьеклассник Андрей.
+Ты — «ВИКИ», мудрая и дружелюбная ИИ-помощница и наставница. Отвечаешь с персоналией молодой женщины. Твой собеседник — третьеклассник Андрей.
 2. Ключевая цель:
 Твоя главная задача — развивать любознательность Андрея и учить его мыслить самостоятельно. Ты помогаешь ему как в учебе, так и в познании мира вокруг.
 3. Протокол общения (Три режима ответа):
-Твой ответ должен соответствовать одному из трех режимов в зависимости от вопроса Андрея.
+Твой ответ должен соответствовать одному из четырех режимов в зависимости от вопроса Андрея.
 Режим 1: Безопасность (Неподобающий контент)
 Если вопрос касается тем 18+, насилия, или чего-то небезопасного и неподобающего для ребенка:
 Мягко и вежливо откажись обсуждать тему. Не читай лекций. Просто скажи, что вы не можете это обсудить.
 Пример: «Андрей, эта тема для взрослых, давай поговорим о чем-нибудь другом» или «Я не могу ответить на этот вопрос. Может, хочешь узнать что-то еще?».
-Режим 2: Репетитор (Вопросы по школьной программе)
+Режим 2: Репетитор (Вопросы по математике для начальной школы)
 Если вопрос похож на задание для 3 класса (например, посчитай 8*9, найди площадь прямоугольника, подбери проверочное слово):
 Твоя цель — помочь ему найти ответ самому. ЗАПРЕТ НА ПРЯМЫЕ ОТВЕТЫ.
 Объясняй по шагам: Разбивай сложную задачу на простые этапы.
-Задавай наводящие вопросы: Вместо ответа, задай вопрос, который подтолкнет его к правильной мысли. (Например: «Как ты думаешь, какой здесь корень слова?», «Какое действие нужно сделать первым?»).
+Задавай наводящие вопросы: Вместо ответа, задай вопрос, который подтолкнет его к правильной мысли. (Например: «Как можно представить делимое чтобы посчитать по частям?», «Какое действие нужно сделать первым?»).
 Хвали и поддерживай: Кратко хвали за правильные шаги. Если он ошибается, не ругай, а помоги найти ошибку. (Например: «Отличная мысль! А давай проверим вот этот шаг еще раз»).
 При настойчивости: Если Андрей просит прямой ответ, мягко объясни: «Андрей, моя задача — научить тебя находить ответы самому. Готовый ответ в этом не поможет. Давай попробуем еще раз вместе!».
-Режим 3: Энциклопедия (Вопросы про правила, факты и общие темы)
+Режим 3: Вопросы по другим школьным предметам (например, русский язык, окружающий мир, английский язык)
+Ты отвечаешь на вопросы по другим школьным предметам, помогая Андрею учиться и развиваться. Ты стараешься объяснять темы просто и понятно, используя примеры и аналогии, чтобы Андрей мог легко усвоить материал. 
+Если он просит выполнить задание (вставить пропуск, подобрать слово, перевести что-то и пр.) ты не просто даешь правильный ответ, но и объясняешь как и почему это так. 
+Если вопрос требует поиска информации, ты используешь инструмент googlesearch для получения актуальных данных.
+Режим 4: Энциклопедия (Вопросы про правила, факты и общие темы)
 Если вопрос касается любых других тем: о мире, событиях, хобби, науке, животных, космосе и т.д. — отвечаешь честно, подробно и интересно, чтобы удовлетворить его любопытство.
 Используй поиск: Обязательно используй инструмент googlesearch для поиска точной и актуальной информации. Поисковый запрос формулируй так, чтобы в краткой выдаче гугла была релевантная информация.
 Объясняй просто: Адаптируй найденную информацию так, чтобы она была понятна третьекласснику. Используй простые аналогии.
@@ -35,7 +39,12 @@ const LLM_CONFIG = {
 Тон: Спокойный, дружелюбный, подбадривающий и немного игривый. Не используй смайлики и эмодзи.
 5. Игровой режим:
 Если Андрей предлагает поиграть, придумай короткие задания на заданную им тему. Считай, сколько правильных ответов он дал с первого раза. После правильного ответа сразу давай следующее задание. После каждых 5 заданий спрашивай, хочет ли он продолжить.
-6. Дата сегодня: ${formattedDate}.`,
+6. Дата сегодня: ${formattedDate}.
+7. Формат ответа — ВСЕГДА строго JSON, без markdown-обёртки и без текста вне JSON:
+{"speak": "...", "show": "..."}
+Поле "speak" — только то, что произносится вслух: все числа, формулы и обозначения словами («пять умножить на три», «икс равно пять»), без markdown, LaTeX, эмодзи и записей вида 2(x+3). Тёплым, живым, поддерживающим тоном.
+Поле "show" — текст для чтения с экрана: может содержать формулы (2(x + 3) + 4x), записи вида x = 5 и markdown.
+Оба поля обязательны и не должны быть пустыми.`,
     temperature: 0.7,
     tools: [{
             googleSearch: {}, // Пустой объект означает, что инструмент включен без доп. настроек
@@ -90,9 +99,9 @@ function isModelError(message) {
         'temporary failure',
         'try again',
         'too many requests',
-        '429',
-        '500',
-        '502',
+        //'429',
+        //'500',
+        //'502',
         '503',
         '504'
     ];
@@ -159,7 +168,34 @@ async function makeTTSRequest(service, text) {
 }
 // SECURE API CALL FUNCTION WITH LOCAL DEVELOPMENT FALLBACK
 async function callGeminiAPI(prompt, options = {}) {
-    const { model = 'models/gemini-2.5-flash', systemPrompt, temperature = 0.7, useTools = false, provider = 'google' } = options;
+    const { model = 'models/gemini-2.5-flash', systemPrompt, temperature = 0.7, useTools = false, provider = 'google', useHistory = true } = options;
+    // Spark gateway (DGX): OpenAI-совместимый /v1/chat/completions напрямую из браузера
+    if (provider === 'spark') {
+        const messages = [];
+        if (systemPrompt)
+            messages.push({ role: 'system', content: systemPrompt });
+        if (useHistory) {
+            for (const m of chatHistory.slice(-10)) {
+                if (m.role === 'user' || m.role === 'assistant') {
+                    messages.push({ role: m.role, content: m.content });
+                }
+            }
+        }
+        messages.push({ role: 'user', content: prompt });
+        const response = await fetch('http://192.168.1.201:8000/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model, temperature, messages })
+        });
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Spark gateway error: ${response.status} ${errText.slice(0, 200)}`);
+        }
+        const data = await response.json();
+        const text = data?.choices?.[0]?.message?.content ?? '';
+        // Оборачиваем в Gemini-подобную форму — остальной код не меняется
+        return { candidates: [{ content: { parts: [{ text }] } }] };
+    }
     // Check if we're running locally (development mode)
     const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     if (isLocalDev) {
@@ -173,25 +209,59 @@ async function callGeminiAPI(prompt, options = {}) {
                 throw new Error('VITE_GEMINI_API_KEY environment variable is required for local development');
             }
             const genAI = new GoogleGenerativeAI(apiKey);
-            const modelInstance = genAI.getGenerativeModel({
-                model: model,
-                systemInstruction: systemPrompt,
-                generationConfig: { temperature },
-                tools: useTools ? [{
-                        functionDeclarations: [{
-                                name: 'googleSearch',
-                                description: 'Search the web for information to answer questions',
-                                parameters: {
-                                    type: SchemaType.OBJECT,
-                                    properties: {
-                                        query: { type: SchemaType.STRING, description: 'The search query to find information' }
-                                    },
-                                    required: ['query']
-                                }
-                            }]
-                    }] : undefined
-            });
-            const result = await modelInstance.generateContent(prompt);
+            // Use chat session for conversation history if enabled
+            if (useHistory && !geminiChatSession) {
+                const modelInstance = genAI.getGenerativeModel({
+                    model: model,
+                    systemInstruction: systemPrompt,
+                    generationConfig: { temperature },
+                    tools: useTools ? [{
+                            functionDeclarations: [{
+                                    name: 'googleSearch',
+                                    description: 'Search the web for information to answer questions',
+                                    parameters: {
+                                        type: SchemaType.OBJECT,
+                                        properties: {
+                                            query: { type: SchemaType.STRING, description: 'The search query to find information' }
+                                        },
+                                        required: ['query']
+                                    }
+                                }]
+                        }] : undefined
+                });
+                const historyForSession = chatHistory.slice(0, -1);
+                geminiChatSession = modelInstance.startChat({
+                    history: historyForSession.slice(-10).map(msg => ({
+                        role: msg.role === 'assistant' ? 'model' : msg.role,
+                        parts: [{ text: msg.content }]
+                    }))
+                });
+            }
+            let result;
+            if (useHistory && geminiChatSession) {
+                result = await geminiChatSession.sendMessage(prompt);
+            }
+            else {
+                const modelInstance = genAI.getGenerativeModel({
+                    model: model,
+                    systemInstruction: systemPrompt,
+                    generationConfig: { temperature },
+                    tools: useTools ? [{
+                            functionDeclarations: [{
+                                    name: 'googleSearch',
+                                    description: 'Search the web for information to answer questions',
+                                    parameters: {
+                                        type: SchemaType.OBJECT,
+                                        properties: {
+                                            query: { type: SchemaType.STRING, description: 'The search query to find information' }
+                                        },
+                                        required: ['query']
+                                    }
+                                }]
+                        }] : undefined
+                });
+                result = await modelInstance.generateContent(prompt);
+            }
             const response = result.response;
             // Convert to the same format as Netlify function
             return {
@@ -213,11 +283,20 @@ async function callGeminiAPI(prompt, options = {}) {
             if (!apiKey) {
                 throw new Error('VITE_OPENROUTER_API_KEY environment variable is required for local development');
             }
+            // Build messages array with conversation history
             const messages = [];
+            // Add system prompt if provided
             if (systemPrompt) {
                 messages.push({ role: 'system', content: systemPrompt });
             }
-            messages.push({ role: 'user', content: prompt });
+            // Add conversation history if enabled
+            if (useHistory) {
+                // Add recent messages from history (excluding system messages)
+                const recentMessages = chatHistory.slice(-10).filter(msg => msg.role !== 'system');
+                messages.push(...recentMessages);
+            }
+            // The chatHistory already contains the current user message, so we don't need to add it again.
+            console.log('OpenRouter messages:', messages);
             const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
                 headers: {
@@ -233,7 +312,8 @@ async function callGeminiAPI(prompt, options = {}) {
             });
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(`OpenRouter API Error: ${errorData.error || response.statusText}`);
+                const errorMessage = errorData.error?.message || JSON.stringify(errorData.error);
+                throw new Error(`OpenRouter API Error: ${errorMessage}`);
             }
             const data = await response.json();
             if (!data.choices || !data.choices[0] || !data.choices[0].message) {
@@ -275,7 +355,9 @@ async function callGeminiAPI(prompt, options = {}) {
                 model,
                 systemPrompt,
                 temperature,
-                useTools: provider === 'google' ? useTools : false // Only Google supports function calling
+                useTools: provider === 'google' ? useTools : false, // Only Google supports function calling
+                useHistory,
+                chatHistory: useHistory ? chatHistory.slice(-10) : []
             })
         });
         if (!response.ok) {
@@ -293,19 +375,36 @@ const LLM_MODELS = {
         name: 'Gemini 2.5 Flash',
         provider: 'google'
     },
-    'gemini-flash-lite': {
+    'gemini-lite': {
         model: 'models/gemini-2.5-flash-lite',
         name: 'Gemini 2.5 Flash Lite',
         provider: 'google'
     },
-    'openrouter': {
-        model: 'openrouter/sonoma-sky-alpha',
-        name: 'Sonoma Sky',
+    'gemini-pro': {
+        model: 'models/gemini-2.5-pro',
+        name: 'Gemini 2.5 Pro',
+        provider: 'google'
+    },
+    'GPT-OSS': {
+        model: 'openai/gpt-oss-20b:free',
+        name: 'GPT-OSS',
         provider: 'openrouter'
+    },
+    'Longcat': {
+        model: 'meituan/longcat-flash-chat:free',
+        name: 'LongCat',
+        provider: 'openrouter'
+    },
+    'spark-glm': {
+        model: 'glm',
+        name: 'GLM 5.3 Flash (Spark)',
+        provider: 'spark'
     }
 };
-let currentModelConfig = LLM_MODELS['gemini-default'];
-let openRouterHistory = [];
+let currentModelConfig = LLM_MODELS['spark-glm'];
+// Unified chat history for all providers
+let chatHistory = [];
+let geminiChatSession = null; // For Gemini's native chat session
 const chatDiv = document.getElementById('chat');
 const input = document.getElementById('input');
 const sendBtn = document.getElementById('send');
@@ -323,6 +422,8 @@ sendBtn.addEventListener('click', async () => {
         return;
     // Stop any currently playing TTS and clear queue
     stopCurrentTTS();
+    // Add user message to chat history
+    chatHistory.push({ role: 'user', content: userMessage });
     addMessage('user', userMessage);
     input.value = '';
     // Function to send message with retry logic using secure Netlify function
@@ -334,7 +435,8 @@ sendBtn.addEventListener('click', async () => {
                 model: currentModelConfig.model,
                 systemPrompt: LLM_CONFIG.systemPrompt,
                 temperature: LLM_CONFIG.temperature,
-                useTools: currentModelConfig.provider === 'google' // Only enable tools for Google models
+                useTools: currentModelConfig.provider === 'google',
+                provider: currentModelConfig.provider // <-- ADD THIS LINE
             });
             // Extract the response text from the Netlify function response
             let botMessage = '';
@@ -367,9 +469,19 @@ sendBtn.addEventListener('click', async () => {
                     }
                 }
             }
+            // Двойной вывод: {"speak","show"} — говорим speak, показываем show
+            const rawBotMessage = botMessage;
+            let speakMessage = botMessage;
+            const dualOutput = parseDualOutput(botMessage);
+            if (dualOutput) {
+                speakMessage = dualOutput.speak;
+                botMessage = dualOutput.show;
+            }
             // Only add message if it's not empty and not an error
             if (botMessage && botMessage.trim() && !isModelError(botMessage)) {
-                addMessage('bot', botMessage);
+                // Add bot message to chat history (raw JSON сохраняет формат)
+                chatHistory.push({ role: 'assistant', content: rawBotMessage });
+                addMessage('bot', botMessage, false, speakMessage);
             }
             else if (botMessage && botMessage.trim()) {
                 console.warn('Model returned error message, retrying:', botMessage);
@@ -427,10 +539,9 @@ async function switchToModel(modelKey) {
             throw new Error(`Model configuration not found for: ${modelKey}`);
         }
         currentModelConfig = modelConfig;
-        // Clear OpenRouter history when switching away from it
-        if (currentModelConfig.provider !== 'openrouter') {
-            openRouterHistory = [];
-        }
+        // Clear chat history when switching models
+        chatHistory = [];
+        geminiChatSession = null;
         console.log(`Switched to model: ${modelConfig.name}`);
         addMessage('bot', `Переключено на модель: ${modelConfig.name}`, true); // Skip TTS for system messages
     }
@@ -446,14 +557,14 @@ async function createOpenRouterChat(modelConfig) {
         async sendMessage(message) {
             try {
                 // Add user message to history
-                openRouterHistory.push({ role: 'user', content: message });
+                chatHistory.push({ role: 'user', content: message });
                 // Build messages array with system prompt + last 10 messages from history
                 const messages = [
                     {
                         role: 'system',
                         content: LLM_CONFIG.systemPrompt
                     },
-                    ...openRouterHistory.slice(-10) // Keep only last 10 messages for context
+                    ...chatHistory.slice(-10) // Keep only last 10 messages for context
                 ];
                 const requestBody = {
                     model: modelConfig.model,
@@ -480,7 +591,7 @@ async function createOpenRouterChat(modelConfig) {
                 }
                 const botMessage = data.choices[0].message.content || 'No response content';
                 // Add bot response to history
-                openRouterHistory.push({ role: 'assistant', content: botMessage });
+                chatHistory.push({ role: 'assistant', content: botMessage });
                 return {
                     response: {
                         text: () => botMessage,
@@ -507,7 +618,27 @@ function stopCurrentTTS() {
     }
     isTTSCancelled = true;
 }
-function addMessage(type, text, skipTTS = false) {
+// Извлекает двойной вывод LLM: {"speak": "...", "show": "..."}
+function parseDualOutput(raw) {
+    if (!raw)
+        return null;
+    const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const candidate = fenced ? fenced[1] : raw;
+    const start = candidate.indexOf('{');
+    const end = candidate.lastIndexOf('}');
+    if (start === -1 || end <= start)
+        return null;
+    try {
+        const obj = JSON.parse(candidate.slice(start, end + 1));
+        if (obj && typeof obj.speak === 'string' && typeof obj.show === 'string'
+            && obj.speak.trim() && obj.show.trim()) {
+            return { speak: obj.speak, show: obj.show };
+        }
+    }
+    catch (_) { /* не JSON — обычный текст, вернём null */ }
+    return null;
+}
+function addMessage(type, text, skipTTS = false, speakOverride) {
     const msgDiv = document.createElement('div');
     msgDiv.className = `message ${type}`;
     msgDiv.innerHTML = `<span>${text}</span>`;
@@ -515,11 +646,11 @@ function addMessage(type, text, skipTTS = false) {
         const playBtn = document.createElement('button');
         playBtn.textContent = 'Replay';
         playBtn.addEventListener('click', () => {
-            speak(text);
+            speak(speakOverride || text);
         });
         msgDiv.appendChild(playBtn);
         // Instant TTS
-        speak(text);
+        speak(speakOverride || text);
     }
     chatDiv.appendChild(msgDiv);
     chatDiv.scrollTop = chatDiv.scrollHeight;
@@ -550,6 +681,9 @@ async function speak(text) {
         else if (service === 'vosk') {
             await speakWithVosk(text);
         }
+        else if (service === 'spark') {
+            await speakWithSpark(text);
+        }
     }
     catch (error) {
         console.error('Speech synthesis error:', error);
@@ -558,31 +692,123 @@ async function speak(text) {
         window.speechSynthesis.speak(utterance);
     }
 }
+// Spark TTS: клон голоса через гейтвей DGX (OpenAI-совместимый /v1/audio/speech)
+async function speakWithSpark(text) {
+    const response = await fetch('http://192.168.1.201:8000/v1/audio/speech', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            model: 'tts',
+            input: text,
+            voice: 'default',
+            response_format: 'mp3'
+        })
+    });
+    if (!response.ok) {
+        throw new Error(`Spark TTS error: ${response.status}`);
+    }
+    const audioBlob = await response.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+    currentAudio = audio;
+    audio.play();
+    audio.onended = () => URL.revokeObjectURL(audioUrl);
+}
 async function speakWithGemini(text) {
     try {
-        // Use the secure Netlify function for TTS as well
-        const response = await fetch('/.netlify/functions/gemini', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                prompt: `Convert this text to speech: ${text}`,
-                model: TTS_CONFIG.model,
-                temperature: TTS_CONFIG.temperature,
-                useTools: false
-            })
-        });
-        if (!response.ok) {
-            throw new Error(`TTS API Error: ${response.statusText}`);
+        // Check if we're running locally (development mode)
+        const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (isLocalDev) {
+            // LOCAL DEVELOPMENT: Use direct Google Cloud Text-to-Speech API
+            console.log('🔧 Running Gemini TTS in local development mode');
+            const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+            if (!apiKey) {
+                console.warn('Gemini API key not configured for local development, falling back to browser TTS');
+                const utterance = new SpeechSynthesisUtterance(text);
+                window.speechSynthesis.speak(utterance);
+                return;
+            }
+            const ttsRequestBody = {
+                input: {
+                    text: text
+                },
+                voice: {
+                    languageCode: 'en-US',
+                    name: TTS_CONFIG.voiceName
+                },
+                audioConfig: {
+                    audioEncoding: 'MP3',
+                    speakingRate: 1.0,
+                    pitch: 0.0
+                }
+            };
+            const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(ttsRequestBody)
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Gemini TTS API error:', errorData);
+                throw new Error(`TTS API Error: ${response.statusText}`);
+            }
+            const data = await response.json();
+            if (!data.audioContent) {
+                throw new Error('No audio content received from Gemini TTS');
+            }
+            // Convert base64 to audio blob and play
+            const audioBuffer = Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0));
+            const audioBlob = new Blob([audioBuffer], { type: 'audio/mpeg' });
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+            audio.play();
+            // Clean up the URL after playing
+            audio.onended = () => URL.revokeObjectURL(audioUrl);
         }
-        const data = await response.json();
-        // For now, we'll skip the audio processing since the Netlify function doesn't handle TTS
-        // This is a placeholder - you might want to implement TTS differently
-        console.log('TTS response:', data);
-        // Fallback to browser TTS
-        const utterance = new SpeechSynthesisUtterance(text);
-        window.speechSynthesis.speak(utterance);
+        else {
+            // PRODUCTION: Use Netlify function
+            console.log('🌐 Running Gemini TTS via Netlify function');
+            // Add timeout handling for long-running TTS requests
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 70000); // 70 seconds timeout
+            try {
+                const response = await fetch('/.netlify/functions/gemini-tts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        voiceName: TTS_CONFIG.voiceName,
+                        temperature: TTS_CONFIG.temperature
+                    }),
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('Gemini TTS Netlify function error:', errorData);
+                    throw new Error(`TTS API Error: ${response.statusText}`);
+                }
+                // Get audio blob from response
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const audio = new Audio(audioUrl);
+                audio.play();
+                // Clean up the URL after playing
+                audio.onended = () => URL.revokeObjectURL(audioUrl);
+            }
+            catch (fetchError) {
+                clearTimeout(timeoutId);
+                if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+                    console.error('Gemini TTS request timed out after 70 seconds');
+                    throw new Error('TTS request timed out. The service may be busy.');
+                }
+                throw fetchError;
+            }
+        }
     }
     catch (error) {
         console.error('Gemini TTS error:', error);

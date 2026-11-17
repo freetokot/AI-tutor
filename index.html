@@ -214,6 +214,7 @@
         <h2>Настройки</h2>
         <label for="llm-model">Модель ИИ:</label>
         <select id="llm-model">
+            <option value="spark-glm" selected>GLM 5.3 Flash (Spark)</option>
             <option value="gemini-default">Gemini (default)</option>
             <option value="gemini-lite">Gemini Lite</option>
             <option value="gemini-pro">Gemini Pro</option>
@@ -223,6 +224,7 @@
         <br><br>
         <label for="tts-service">Голосовая модель:</label>
         <select id="tts-service">
+            <option value="spark" selected>Spark — клон голоса (DGX)</option>
             <option value="vosk">Vosk</option>
             <option value="silero">Silero</option>
             <option value="gemini">Gemini TTS</option>

@@ -41,7 +41,12 @@ const LLM_CONFIG = {
 Тон: Спокойный, дружелюбный, подбадривающий и немного игривый. Не используй смайлики и эмодзи.
 5. Игровой режим:
 Если Андрей предлагает поиграть, придумай короткие задания на заданную им тему. Считай, сколько правильных ответов он дал с первого раза. После правильного ответа сразу давай следующее задание. После каждых 5 заданий спрашивай, хочет ли он продолжить.
-6. Дата сегодня: ${formattedDate}.`,
+6. Дата сегодня: ${formattedDate}.
+7. Формат ответа — ВСЕГДА строго JSON, без markdown-обёртки и без текста вне JSON:
+{"speak": "...", "show": "..."}
+Поле "speak" — только то, что произносится вслух: все числа, формулы и обозначения словами («пять умножить на три», «икс равно пять»), без markdown, LaTeX, эмодзи и записей вида 2(x+3). Тёплым, живым, поддерживающим тоном.
+Поле "show" — текст для чтения с экрана: может содержать формулы (2(x + 3) + 4x), записи вида x = 5 и markdown.
+Оба поля обязательны и не должны быть пустыми.`,
     temperature: 0.7,
     tools: [{
         googleSearch: {}, // Пустой объект означает, что инструмент включен без доп. настроек
@@ -197,6 +202,33 @@ async function callGeminiAPI(prompt: string, options: {
     provider = 'google',
     useHistory = true
   } = options;
+
+  // Spark gateway (DGX): OpenAI-совместимый /v1/chat/completions напрямую из браузера
+  if (provider === 'spark') {
+    const messages: Array<{role: string, content: string}> = [];
+    if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+    if (useHistory) {
+      for (const m of chatHistory.slice(-10)) {
+        if (m.role === 'user' || m.role === 'assistant') {
+          messages.push({ role: m.role, content: m.content });
+        }
+      }
+    }
+    messages.push({ role: 'user', content: prompt });
+    const response = await fetch('http://192.168.1.201:8000/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, temperature, messages })
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Spark gateway error: ${response.status} ${errText.slice(0, 200)}`);
+    }
+    const data = await response.json();
+    const text = data?.choices?.[0]?.message?.content ?? '';
+    // Оборачиваем в Gemini-подобную форму — остальной код не меняется
+    return { candidates: [{ content: { parts: [{ text }] } }] };
+  }
 
   // Check if we're running locally (development mode)
   const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -417,10 +449,15 @@ const LLM_MODELS: Record<string, {model: string, name: string, provider: string}
         model: 'meituan/longcat-flash-chat:free',
         name: 'LongCat',
         provider: 'openrouter'
+    },
+    'spark-glm': {
+        model: 'glm',
+        name: 'GLM 5.3 Flash (Spark)',
+        provider: 'spark'
     }
 };
 
-let currentModelConfig = LLM_MODELS['gemini-default'];
+let currentModelConfig = LLM_MODELS['spark-glm'];
 
 // Unified chat history for all providers
 let chatHistory: Array<{role: string, content: string}> = [];
@@ -507,11 +544,20 @@ sendBtn.addEventListener('click', async () => {
                 }
             }
 
+            // Двойной вывод: {"speak","show"} — говорим speak, показываем show
+            const rawBotMessage = botMessage;
+            let speakMessage = botMessage;
+            const dualOutput = parseDualOutput(botMessage);
+            if (dualOutput) {
+                speakMessage = dualOutput.speak;
+                botMessage = dualOutput.show;
+            }
+
             // Only add message if it's not empty and not an error
             if (botMessage && botMessage.trim() && !isModelError(botMessage)) {
-                // Add bot message to chat history
-                chatHistory.push({ role: 'assistant', content: botMessage });
-                addMessage('bot', botMessage);
+                // Add bot message to chat history (raw JSON сохраняет формат)
+                chatHistory.push({ role: 'assistant', content: rawBotMessage });
+                addMessage('bot', botMessage, false, speakMessage);
             } else if (botMessage && botMessage.trim()) {
                 console.warn('Model returned error message, retrying:', botMessage);
                 if (retryCount < maxRetries) {
@@ -664,7 +710,25 @@ function stopCurrentTTS() {
     isTTSCancelled = true;
 }
 
-function addMessage(type: string, text: string, skipTTS: boolean = false) {
+// Извлекает двойной вывод LLM: {"speak": "...", "show": "..."}
+function parseDualOutput(raw: string): { speak: string; show: string } | null {
+    if (!raw) return null;
+    const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const candidate = fenced ? fenced[1] : raw;
+    const start = candidate.indexOf('{');
+    const end = candidate.lastIndexOf('}');
+    if (start === -1 || end <= start) return null;
+    try {
+        const obj = JSON.parse(candidate.slice(start, end + 1));
+        if (obj && typeof obj.speak === 'string' && typeof obj.show === 'string'
+            && obj.speak.trim() && obj.show.trim()) {
+            return { speak: obj.speak, show: obj.show };
+        }
+    } catch (_) { /* не JSON — обычный текст, вернём null */ }
+    return null;
+}
+
+function addMessage(type: string, text: string, skipTTS: boolean = false, speakOverride?: string) {
     const msgDiv = document.createElement('div');
     msgDiv.className = `message ${type}`;
     msgDiv.innerHTML = `<span>${text}</span>`;
@@ -672,11 +736,11 @@ function addMessage(type: string, text: string, skipTTS: boolean = false) {
         const playBtn = document.createElement('button');
         playBtn.textContent = 'Replay';
         playBtn.addEventListener('click', () => {
-            speak(text);
+            speak(speakOverride || text);
         });
         msgDiv.appendChild(playBtn);
         // Instant TTS
-        speak(text);
+        speak(speakOverride || text);
     }
     chatDiv.appendChild(msgDiv);
     chatDiv.scrollTop = chatDiv.scrollHeight;
@@ -704,6 +768,8 @@ async function speak(text: string) {
             await speakWithSilero(text);
         } else if (service === 'vosk') {
             await speakWithVosk(text);
+        } else if (service === 'spark') {
+            await speakWithSpark(text);
         }
     } catch (error) {
         console.error('Speech synthesis error:', error);
@@ -711,6 +777,29 @@ async function speak(text: string) {
         const utterance = new SpeechSynthesisUtterance(text);
         window.speechSynthesis.speak(utterance);
     }
+}
+
+// Spark TTS: клон голоса через гейтвей DGX (OpenAI-совместимый /v1/audio/speech)
+async function speakWithSpark(text: string) {
+    const response = await fetch('http://192.168.1.201:8000/v1/audio/speech', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            model: 'tts',
+            input: text,
+            voice: 'default',
+            response_format: 'mp3'
+        })
+    });
+    if (!response.ok) {
+        throw new Error(`Spark TTS error: ${response.status}`);
+    }
+    const audioBlob = await response.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+    currentAudio = audio;
+    audio.play();
+    audio.onended = () => URL.revokeObjectURL(audioUrl);
 }
 
 async function speakWithGemini(text: string) {
