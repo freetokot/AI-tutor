@@ -509,6 +509,7 @@ const chatDiv = document.getElementById('chat') as HTMLDivElement;
 const input = document.getElementById('input') as HTMLInputElement;
 const sendBtn = document.getElementById('send') as HTMLButtonElement;
 const photoBtn = document.getElementById('photo') as HTMLButtonElement;
+const eqEl = document.getElementById('eq') as HTMLDivElement;
 const photoInput = document.getElementById('photo-input') as HTMLInputElement;
 const llmSelect = document.getElementById('llm-model') as HTMLSelectElement;
 const ttsSelect = document.getElementById('tts-service') as HTMLSelectElement;
@@ -520,11 +521,22 @@ let piperLoaded = false;
 let piperModel: ArrayBuffer | null = null;
 let piperConfig: any = null;
 
-// --- Push-to-talk: пустой ввод → кнопка записывает голос и транскрибирует
-// через Groq Whisper (ключ живёт на гейтвее, в бандле его нет) ---
+// --- Push-to-talk: пустой ввод → круглая кнопка-микрофон: держи — запись,
+// отпусти — отправка, свайп влево — отмена. Поле ввода на время записи
+// превращается в живой эквалайзер. Транскрибация через Groq Whisper (ключ
+// живёт на гейтвее, в бандле его нет). С текстом кнопка — самолётик. ---
+const ICON_MIC = '<svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>';
+const ICON_SEND = '<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>';
+
 let mediaRecorder: MediaRecorder | null = null;
 let audioChunks: Blob[] = [];
 let isRecording = false;
+let discardFlag = false;      // свайп-отмена: запись выбрасывается
+let releasePending = false;   // отпустили раньше, чем поднялся микрофон
+let recStartX = 0;
+let cancelPending = false;
+let eqRaf = 0;
+let audioCtx: AudioContext | null = null;
 
 function pickRecorderMime(): string | undefined {
     for (const m of ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']) {
@@ -533,30 +545,91 @@ function pickRecorderMime(): string | undefined {
     return undefined;
 }
 
+function updateSendBtn(): void {
+    if (isRecording) return; // во время записи кнопкой управляют pointer-события
+    sendBtn.classList.remove('recording', 'cancel');
+    sendBtn.innerHTML = input.value.trim() ? ICON_SEND : ICON_MIC;
+}
+
+// --- живой эквалайзер вместо поля ввода ---
+function startEqualizer(stream: MediaStream): void {
+    input.style.display = 'none';
+    eqEl.style.display = 'flex';
+    if (!eqEl.childElementCount) {
+        for (let i = 0; i < 28; i++) eqEl.appendChild(document.createElement('i'));
+    }
+    try {
+        audioCtx = new AudioContext();
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.75;
+        audioCtx.createMediaStreamSource(stream).connect(analyser);
+        const buf = new Uint8Array(analyser.frequencyBinCount);
+        const bars = Array.from(eqEl.children) as HTMLElement[];
+        const loop = () => {
+            analyser.getByteFrequencyData(buf);
+            const n = bars.length;
+            for (let i = 0; i < n; i++) {
+                // лог-раскладка частот: низы шире, как в диктофонах
+                const bin = 1 + Math.floor(Math.pow(i / n, 1.6) * (buf.length - 2));
+                const v = buf[bin] / 255;
+                bars[i].style.height = (4 + v * 34).toFixed(1) + 'px';
+            }
+            eqRaf = requestAnimationFrame(loop);
+        };
+        eqRaf = requestAnimationFrame(loop);
+    } catch {
+        eqEl.classList.add('fake'); // нет анализатора — CSS-пульсация
+    }
+}
+
+function stopEqualizer(): void {
+    if (eqRaf) cancelAnimationFrame(eqRaf);
+    eqRaf = 0;
+    if (audioCtx) {
+        try { void audioCtx.close(); } catch { /* noop */ }
+        audioCtx = null;
+    }
+    eqEl.style.display = 'none';
+    eqEl.classList.remove('cancel', 'fake');
+    input.style.display = '';
+}
+
 async function startRecording(): Promise<void> {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (releasePending) { // отпустили раньше, чем поднялся микрофон
+            releasePending = false;
+            stream.getTracks().forEach(t => t.stop());
+            return;
+        }
         const mime = pickRecorderMime();
         mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime })
                              : new MediaRecorder(stream);
         audioChunks = [];
+        discardFlag = false;
+        cancelPending = false;
         mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
         mediaRecorder.onstop = () => {
+            stopEqualizer();
             stream.getTracks().forEach(t => t.stop());
             const blob = new Blob(audioChunks, { type: mediaRecorder?.mimeType || 'audio/webm' });
             audioChunks = [];
             mediaRecorder = null;
             isRecording = false;
-            sendBtn.classList.remove('recording');
-            sendBtn.textContent = 'Отправить';
+            cancelPending = false;
+            updateSendBtn();
+            if (discardFlag) { discardFlag = false; return; } // свайп-отмена
             if (blob.size > 1000) void transcribeAndSend(blob);
-            else addMessage('bot', 'Не расслышал — попробуй ещё раз.', true);
+            else addMessage('bot', 'Не расслышал — держи кнопку, пока говоришь.', true);
         };
         mediaRecorder.start(250);
         isRecording = true;
         sendBtn.classList.add('recording');
-        sendBtn.textContent = '⏹ Запись…';
+        sendBtn.innerHTML = ICON_MIC;
+        startEqualizer(stream);
     } catch (err) {
+        releasePending = false;
         console.error('микрофон недоступен', err);
         addMessage('bot', 'Нет доступа к микрофону.', true);
     }
@@ -566,8 +639,13 @@ function stopRecording(): void {
     if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
 }
 
+function discardRecording(): void {
+    discardFlag = true;
+    stopRecording();
+}
+
 async function transcribeAndSend(blob: Blob): Promise<void> {
-    sendBtn.textContent = '…';
+    sendBtn.innerHTML = '…';
     try {
         const resp = await fetch(gatewayBase() + '/v1/audio/transcriptions', {
             method: 'POST',
@@ -582,22 +660,58 @@ async function transcribeAndSend(blob: Blob): Promise<void> {
             return;
         }
         input.value = text;
+        updateSendBtn();
         sendBtn.click(); // обычный путь отправки текста
     } catch (err) {
         console.error('ошибка транскрипции', err);
         addMessage('bot', 'Не удалось расшифровать голос.', true);
     } finally {
-        sendBtn.textContent = 'Отправить';
+        updateSendBtn();
     }
 }
 
+sendBtn.addEventListener('pointerdown', (e) => {
+    if (input.value.trim()) return; // текстовый режим — обычный клик-отправка
+    if (isRecording) return;
+    releasePending = false;
+    cancelPending = false;
+    recStartX = e.clientX;
+    e.preventDefault();
+    try { sendBtn.setPointerCapture(e.pointerId); } catch { /* noop */ }
+    void startRecording();
+});
+
+sendBtn.addEventListener('pointermove', (e) => {
+    if (!isRecording) return;
+    const cancelled = e.clientX - recStartX < -60;
+    if (cancelled !== cancelPending) {
+        cancelPending = cancelled;
+        sendBtn.classList.toggle('cancel', cancelled);
+        eqEl.classList.toggle('cancel', cancelled);
+        sendBtn.innerHTML = cancelled ? '✕' : ICON_MIC;
+    }
+});
+
+const finishPress = () => {
+    if (isRecording) {
+        if (cancelPending) discardRecording(); else stopRecording();
+    }
+};
+sendBtn.addEventListener('pointerup', () => {
+    if (isRecording) finishPress();
+    else releasePending = true; // микрофон ещё поднимается
+});
+sendBtn.addEventListener('pointercancel', () => {
+    if (isRecording) finishPress();
+    else releasePending = false;
+});
+sendBtn.addEventListener('contextmenu', (e) => { if (isRecording) e.preventDefault(); });
+input.addEventListener('input', updateSendBtn);
+updateSendBtn();
+
 sendBtn.addEventListener('click', async () => {
     const userMessage = input.value.trim();
-    if (!userMessage) {
-        // пустой ввод: кнопка работает как push-to-talk
-        if (!isRecording) void startRecording(); else stopRecording();
-        return;
-    }
+    if (!userMessage) return; // пустой ввод обслуживают pointer-события (push-to-talk)
 
     // Stop any currently playing TTS and clear queue
     stopCurrentTTS();
@@ -607,6 +721,7 @@ sendBtn.addEventListener('click', async () => {
 
     addMessage('user', userMessage);
     input.value = '';
+    updateSendBtn(); // текст ушёл → кнопка снова микрофон
 
     // Function to send message with retry logic using secure Netlify function
     const sendMessageWithRetry = async (message: string, retryCount = 0): Promise<void> => {
