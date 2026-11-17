@@ -511,6 +511,8 @@ const sendBtn = document.getElementById('send') as HTMLButtonElement;
 const photoBtn = document.getElementById('photo') as HTMLButtonElement;
 const eqEl = document.getElementById('eq') as HTMLDivElement;
 const photoInput = document.getElementById('photo-input') as HTMLInputElement;
+const cameraBtn = document.getElementById('camera') as HTMLButtonElement;
+const cameraInput = document.getElementById('camera-input') as HTMLInputElement;
 const llmSelect = document.getElementById('llm-model') as HTMLSelectElement;
 const ttsSelect = document.getElementById('tts-service') as HTMLSelectElement;
 const progressContainer = document.getElementById('progress-container') as HTMLDivElement;
@@ -885,12 +887,13 @@ input.addEventListener('keydown', (e) => {
     }
 });
 
-// --- Фото: GLM-5.3 понимает изображения; шлём base64 через гейтвей ---
+// --- Фото: GLM-5.3 понимает изображения; шлём base64 через гейтвей.
+// Текст из поля ввода (если набран) уходит вместе с фото — модель понимает,
+// о чём спросить. 📎 — галерея, 📷 — камера (capture=environment). ---
 photoBtn.addEventListener('click', () => photoInput.click());
-photoInput.addEventListener('change', async () => {
-    const file = photoInput.files && photoInput.files[0];
-    photoInput.value = '';
-    if (!file) return;
+cameraBtn.addEventListener('click', () => cameraInput.click());
+
+async function handlePhotoFile(file: File): Promise<void> {
     if (file.size > 8 * 1024 * 1024) {
         addMessage('bot', 'Фото слишком большое (макс. 8 МБ).', true);
         return;
@@ -899,6 +902,10 @@ photoInput.addEventListener('change', async () => {
         addMessage('bot', 'Фото понимает только GLM (spark) — переключи модель.', true);
         return;
     }
+    // текст берём до очистки поля: он уходит вместе с фото
+    const userText = input.value.trim();
+    input.value = '';
+    updateSendBtn();
     try {
         const b64 = await new Promise<string>((resolve, reject) => {
             const r = new FileReader();
@@ -907,10 +914,15 @@ photoInput.addEventListener('change', async () => {
             r.readAsDataURL(file);
         });
         stopCurrentTTS();
-        addMessage('user', '📷 Фото');
-        chatHistory.push({ role: 'user', content: '[пользователь отправил фото]' });
+        addMessage('user', userText ? `📷 Фото: ${userText}` : '📷 Фото');
+        chatHistory.push({
+            role: 'user',
+            content: '[пользователь отправил фото]' + (userText ? `: ${userText}` : '')
+        });
+        const prompt = userText ||
+            'Посмотри на изображение и ответь по существу, как собеседник.';
         const data = await callGeminiAPI(
-            'Посмотри на изображение и ответь по существу, как собеседник.',
+            prompt,
             {
                 model: currentModelConfig.model,
                 systemPrompt: LLM_CONFIG.systemPrompt,
@@ -934,6 +946,17 @@ photoInput.addEventListener('change', async () => {
         console.error('ошибка отправки фото', err);
         addMessage('bot', 'Не удалось отправить фото.', true);
     }
+}
+
+photoInput.addEventListener('change', () => {
+    const file = photoInput.files && photoInput.files[0];
+    photoInput.value = '';
+    if (file) void handlePhotoFile(file);
+});
+cameraInput.addEventListener('change', () => {
+    const file = cameraInput.files && cameraInput.files[0];
+    cameraInput.value = '';
+    if (file) void handlePhotoFile(file);
 });
 
 // LLM Model selector event listener
