@@ -220,7 +220,7 @@ async function callGeminiAPI(prompt: string, options: {
     const response = await fetch(gatewayBase() + '/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, temperature, messages, stream: true })
+      body: JSON.stringify({ model, temperature, messages, stream: true, reasoning_effort: 'low' })
     });
     if (!response.ok || !response.body) {
       const errText = await response.text().catch(() => '');
