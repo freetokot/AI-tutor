@@ -215,7 +215,7 @@ async function callGeminiAPI(prompt: string, options: {
       }
     }
     messages.push({ role: 'user', content: prompt });
-    const response = await fetch('http://192.168.1.201:8000/v1/chat/completions', {
+    const response = await fetch(gatewayBase() + '/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, temperature, messages })
@@ -780,8 +780,14 @@ async function speak(text: string) {
 }
 
 // Spark TTS: клон голоса через гейтвей DGX (OpenAI-совместимый /v1/audio/speech)
+// https-страница (Netlify) не может звать http://LAN (mixed content) — идём через туннель
+const GATEWAY_HTTPS_URL = 'https://dig-investment-satisfy-pencil.trycloudflare.com';
+function gatewayBase(): string {
+    return location.protocol === 'https:' ? GATEWAY_HTTPS_URL : 'http://192.168.1.201:8000';
+}
+
 async function speakWithSpark(text: string) {
-    const response = await fetch('http://192.168.1.201:8000/v1/audio/speech', {
+    const response = await fetch(gatewayBase() + '/v1/audio/speech', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
