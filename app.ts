@@ -194,6 +194,7 @@ async function callGeminiAPI(prompt: string, options: {
   provider?: string;
   useHistory?: boolean;
   onDelta?: (fullText: string) => void; // стриминг: полный накопленный текст на каждый чанк
+  imageBase64?: string; // data:image/...;base64,... — GLM понимает картинки
 } = {}) {
   const {
     model = 'models/gemini-2.5-flash',
@@ -202,7 +203,8 @@ async function callGeminiAPI(prompt: string, options: {
     useTools = false,
     provider = 'google',
     useHistory = true,
-    onDelta
+    onDelta,
+    imageBase64
   } = options;
 
   // Spark gateway (DGX): OpenAI-совместимый /v1/chat/completions напрямую из браузера
@@ -217,10 +219,24 @@ async function callGeminiAPI(prompt: string, options: {
       }
     }
     messages.push({ role: 'user', content: prompt });
+    // GLM vision: последнему сообщению прикладываем картинку (OpenAI-стиль)
+    type SparkContent = string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
+    const sparkMessages: Array<{ role: string; content: SparkContent }> =
+        messages.map(m => ({ role: m.role, content: m.content }));
+    if (imageBase64) {
+        const last = sparkMessages[sparkMessages.length - 1];
+        last.content = [{
+            type: 'text',
+            text: typeof last.content === 'string' ? last.content : ''
+        }, {
+            type: 'image_url',
+            image_url: { url: imageBase64 }
+        }];
+    }
     const response = await fetch(gatewayBase() + '/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, temperature, messages, stream: true, reasoning_effort: 'low' })
+      body: JSON.stringify({ model, temperature, messages: sparkMessages, stream: true, reasoning_effort: 'low' })
     });
     if (!response.ok || !response.body) {
       const errText = await response.text().catch(() => '');
@@ -492,6 +508,8 @@ let geminiChatSession: any = null; // For Gemini's native chat session
 const chatDiv = document.getElementById('chat') as HTMLDivElement;
 const input = document.getElementById('input') as HTMLInputElement;
 const sendBtn = document.getElementById('send') as HTMLButtonElement;
+const photoBtn = document.getElementById('photo') as HTMLButtonElement;
+const photoInput = document.getElementById('photo-input') as HTMLInputElement;
 const llmSelect = document.getElementById('llm-model') as HTMLSelectElement;
 const ttsSelect = document.getElementById('tts-service') as HTMLSelectElement;
 const progressContainer = document.getElementById('progress-container') as HTMLDivElement;
@@ -502,9 +520,84 @@ let piperLoaded = false;
 let piperModel: ArrayBuffer | null = null;
 let piperConfig: any = null;
 
+// --- Push-to-talk: пустой ввод → кнопка записывает голос и транскрибирует
+// через Groq Whisper (ключ живёт на гейтвее, в бандле его нет) ---
+let mediaRecorder: MediaRecorder | null = null;
+let audioChunks: Blob[] = [];
+let isRecording = false;
+
+function pickRecorderMime(): string | undefined {
+    for (const m of ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']) {
+        if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m)) return m;
+    }
+    return undefined;
+}
+
+async function startRecording(): Promise<void> {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mime = pickRecorderMime();
+        mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime })
+                             : new MediaRecorder(stream);
+        audioChunks = [];
+        mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+        mediaRecorder.onstop = () => {
+            stream.getTracks().forEach(t => t.stop());
+            const blob = new Blob(audioChunks, { type: mediaRecorder?.mimeType || 'audio/webm' });
+            audioChunks = [];
+            mediaRecorder = null;
+            isRecording = false;
+            sendBtn.classList.remove('recording');
+            sendBtn.textContent = 'Отправить';
+            if (blob.size > 1000) void transcribeAndSend(blob);
+            else addMessage('bot', 'Не расслышал — попробуй ещё раз.', true);
+        };
+        mediaRecorder.start(250);
+        isRecording = true;
+        sendBtn.classList.add('recording');
+        sendBtn.textContent = '⏹ Запись…';
+    } catch (err) {
+        console.error('микрофон недоступен', err);
+        addMessage('bot', 'Нет доступа к микрофону.', true);
+    }
+}
+
+function stopRecording(): void {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+}
+
+async function transcribeAndSend(blob: Blob): Promise<void> {
+    sendBtn.textContent = '…';
+    try {
+        const resp = await fetch(gatewayBase() + '/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: { 'X-Audio-Type': blob.type || 'audio/webm' },
+            body: blob
+        });
+        if (!resp.ok) throw new Error('transcriptions ' + resp.status);
+        const data = await resp.json() as { text?: string };
+        const text = (data.text || '').trim();
+        if (!text) {
+            addMessage('bot', 'Пустая транскрипция — попробуй ещё раз.', true);
+            return;
+        }
+        input.value = text;
+        sendBtn.click(); // обычный путь отправки текста
+    } catch (err) {
+        console.error('ошибка транскрипции', err);
+        addMessage('bot', 'Не удалось расшифровать голос.', true);
+    } finally {
+        sendBtn.textContent = 'Отправить';
+    }
+}
+
 sendBtn.addEventListener('click', async () => {
     const userMessage = input.value.trim();
-    if (!userMessage) return;
+    if (!userMessage) {
+        // пустой ввод: кнопка работает как push-to-talk
+        if (!isRecording) void startRecording(); else stopRecording();
+        return;
+    }
 
     // Stop any currently playing TTS and clear queue
     stopCurrentTTS();
@@ -674,6 +767,57 @@ sendBtn.addEventListener('click', async () => {
 input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         sendBtn.click();
+    }
+});
+
+// --- Фото: GLM-5.3 понимает изображения; шлём base64 через гейтвей ---
+photoBtn.addEventListener('click', () => photoInput.click());
+photoInput.addEventListener('change', async () => {
+    const file = photoInput.files && photoInput.files[0];
+    photoInput.value = '';
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+        addMessage('bot', 'Фото слишком большое (макс. 8 МБ).', true);
+        return;
+    }
+    if (currentModelConfig.provider !== 'spark') {
+        addMessage('bot', 'Фото понимает только GLM (spark) — переключи модель.', true);
+        return;
+    }
+    try {
+        const b64 = await new Promise<string>((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(String(r.result));
+            r.onerror = () => reject(r.error);
+            r.readAsDataURL(file);
+        });
+        stopCurrentTTS();
+        addMessage('user', '📷 Фото');
+        chatHistory.push({ role: 'user', content: '[пользователь отправил фото]' });
+        const data = await callGeminiAPI(
+            'Посмотри на изображение и ответь по существу, как собеседник.',
+            {
+                model: currentModelConfig.model,
+                systemPrompt: LLM_CONFIG.systemPrompt,
+                temperature: LLM_CONFIG.temperature,
+                useTools: false,
+                provider: currentModelConfig.provider,
+                useHistory: true,
+                imageBase64: b64
+            });
+        const parts = data?.candidates?.[0]?.content?.parts || [];
+        const raw = parts.map((p: any) => p.text || '').join('');
+        let show = raw;
+        let speakText = raw;
+        try {
+            const j = JSON.parse(raw);
+            if (j && typeof j.show === 'string') { show = j.show; speakText = j.speak || j.show; }
+        } catch { /* не JSON — показываем как есть */ }
+        chatHistory.push({ role: 'assistant', content: raw });
+        addMessage('bot', show, false, speakText);
+    } catch (err) {
+        console.error('ошибка отправки фото', err);
+        addMessage('bot', 'Не удалось отправить фото.', true);
     }
 });
 

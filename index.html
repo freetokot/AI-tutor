@@ -173,6 +173,27 @@
             transition: background-color 0.2s;
         }
 
+        .icon-btn {
+            padding: 10px 14px;
+            margin-right: 10px;
+            border: none;
+            border-radius: 20px;
+            background-color: var(--input-bg);
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        #send.recording {
+            background-color: #e53935;
+            animation: rec-pulse 1.2s infinite;
+        }
+
+        @keyframes rec-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.55; }
+        }
+
         #send:hover {
             background-color: #0056b3;
         }
@@ -252,6 +273,8 @@
             <div class="message bot">Привет! Чем тебе помочь сегодня?</div>
         </div>
         <div class="input-row">
+            <button id="photo" class="icon-btn" title="Отправить фото">📎</button>
+            <input type="file" id="photo-input" accept="image/*" style="display:none">
             <input type="text" id="input" placeholder="Введите сообщение...">
             <button id="send">Отправить</button>
         </div>
