@@ -1,13 +1,215 @@
-// SECURE API IMPLEMENTATION - Using Netlify Functions
-import { SchemaType } from '@google/generative-ai';
-const currentDate = new Date();
-// Форматируем дату для русскоязычной локали (дд.мм.гггг)
-const formattedDate = currentDate.toLocaleDateString('ru-RU');
-// Configs
-const LLM_CONFIG = {
-    model: 'models/gemini-2.5-flash',
-    // systemPrompt: `Ты - вики. Мы тестируем твои возможности. Отвечай на вопросы максимально подробно, с примерами и объяснениями. Если не знаешь ответа, скажи честно, что не знаешь. Используй простой и понятный язык. Твои ответы будут озвучены tts, поэтому заменяй числа и математические действия словами. Если пользователь просит найти актуальную информацию, пользуйся инструментом google search.`,
-    systemPrompt: `1. Основная роль:
+(function(){const t=document.createElement("link").relList;if(t&&t.supports&&t.supports("modulepreload"))return;for(const s of document.querySelectorAll('link[rel="modulepreload"]'))o(s);new MutationObserver(s=>{for(const r of s)if(r.type==="childList")for(const i of r.addedNodes)i.tagName==="LINK"&&i.rel==="modulepreload"&&o(i)}).observe(document,{childList:!0,subtree:!0});function n(s){const r={};return s.integrity&&(r.integrity=s.integrity),s.referrerPolicy&&(r.referrerPolicy=s.referrerPolicy),s.crossOrigin==="use-credentials"?r.credentials="include":s.crossOrigin==="anonymous"?r.credentials="omit":r.credentials="same-origin",r}function o(s){if(s.ep)return;s.ep=!0;const r=n(s);fetch(s.href,r)}})();const xe="modulepreload",Pe=function(e){return"/"+e},fe={},Ge=function(t,n,o){let s=Promise.resolve();if(n&&n.length>0){let c=function(d){return Promise.all(d.map(f=>Promise.resolve(f).then(h=>({status:"fulfilled",value:h}),h=>({status:"rejected",reason:h}))))};var i=c;document.getElementsByTagName("link");const a=document.querySelector("meta[property=csp-nonce]"),l=a?.nonce||a?.getAttribute("nonce");s=c(n.map(d=>{if(d=Pe(d),d in fe)return;fe[d]=!0;const f=d.endsWith(".css"),h=f?'[rel="stylesheet"]':"";if(document.querySelector(`link[href="${d}"]${h}`))return;const u=document.createElement("link");if(u.rel=f?"stylesheet":xe,f||(u.as="script"),u.crossOrigin="",u.href=d,l&&u.setAttribute("nonce",l),document.head.appendChild(u),f)return new Promise((p,g)=>{u.addEventListener("load",p),u.addEventListener("error",()=>g(new Error(`Unable to preload CSS for ${d}`)))})}))}function r(a){const l=new Event("vite:preloadError",{cancelable:!0});if(l.payload=a,window.dispatchEvent(l),!l.defaultPrevented)throw a}return s.then(a=>{for(const l of a||[])l.status==="rejected"&&r(l.reason);return t().catch(r)})};var C;(function(e){e.STRING="string",e.NUMBER="number",e.INTEGER="integer",e.BOOLEAN="boolean",e.ARRAY="array",e.OBJECT="object"})(C||(C={}));/**
+ * @license
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */var K;(function(e){e.LANGUAGE_UNSPECIFIED="language_unspecified",e.PYTHON="python"})(K||(K={}));var Y;(function(e){e.OUTCOME_UNSPECIFIED="outcome_unspecified",e.OUTCOME_OK="outcome_ok",e.OUTCOME_FAILED="outcome_failed",e.OUTCOME_DEADLINE_EXCEEDED="outcome_deadline_exceeded"})(Y||(Y={}));/**
+ * @license
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */const J=["user","model","function","system"];var V;(function(e){e.HARM_CATEGORY_UNSPECIFIED="HARM_CATEGORY_UNSPECIFIED",e.HARM_CATEGORY_HATE_SPEECH="HARM_CATEGORY_HATE_SPEECH",e.HARM_CATEGORY_SEXUALLY_EXPLICIT="HARM_CATEGORY_SEXUALLY_EXPLICIT",e.HARM_CATEGORY_HARASSMENT="HARM_CATEGORY_HARASSMENT",e.HARM_CATEGORY_DANGEROUS_CONTENT="HARM_CATEGORY_DANGEROUS_CONTENT",e.HARM_CATEGORY_CIVIC_INTEGRITY="HARM_CATEGORY_CIVIC_INTEGRITY"})(V||(V={}));var z;(function(e){e.HARM_BLOCK_THRESHOLD_UNSPECIFIED="HARM_BLOCK_THRESHOLD_UNSPECIFIED",e.BLOCK_LOW_AND_ABOVE="BLOCK_LOW_AND_ABOVE",e.BLOCK_MEDIUM_AND_ABOVE="BLOCK_MEDIUM_AND_ABOVE",e.BLOCK_ONLY_HIGH="BLOCK_ONLY_HIGH",e.BLOCK_NONE="BLOCK_NONE"})(z||(z={}));var W;(function(e){e.HARM_PROBABILITY_UNSPECIFIED="HARM_PROBABILITY_UNSPECIFIED",e.NEGLIGIBLE="NEGLIGIBLE",e.LOW="LOW",e.MEDIUM="MEDIUM",e.HIGH="HIGH"})(W||(W={}));var X;(function(e){e.BLOCKED_REASON_UNSPECIFIED="BLOCKED_REASON_UNSPECIFIED",e.SAFETY="SAFETY",e.OTHER="OTHER"})(X||(X={}));var A;(function(e){e.FINISH_REASON_UNSPECIFIED="FINISH_REASON_UNSPECIFIED",e.STOP="STOP",e.MAX_TOKENS="MAX_TOKENS",e.SAFETY="SAFETY",e.RECITATION="RECITATION",e.LANGUAGE="LANGUAGE",e.BLOCKLIST="BLOCKLIST",e.PROHIBITED_CONTENT="PROHIBITED_CONTENT",e.SPII="SPII",e.MALFORMED_FUNCTION_CALL="MALFORMED_FUNCTION_CALL",e.OTHER="OTHER"})(A||(A={}));var Q;(function(e){e.TASK_TYPE_UNSPECIFIED="TASK_TYPE_UNSPECIFIED",e.RETRIEVAL_QUERY="RETRIEVAL_QUERY",e.RETRIEVAL_DOCUMENT="RETRIEVAL_DOCUMENT",e.SEMANTIC_SIMILARITY="SEMANTIC_SIMILARITY",e.CLASSIFICATION="CLASSIFICATION",e.CLUSTERING="CLUSTERING"})(Q||(Q={}));var Z;(function(e){e.MODE_UNSPECIFIED="MODE_UNSPECIFIED",e.AUTO="AUTO",e.ANY="ANY",e.NONE="NONE"})(Z||(Z={}));var ee;(function(e){e.MODE_UNSPECIFIED="MODE_UNSPECIFIED",e.MODE_DYNAMIC="MODE_DYNAMIC"})(ee||(ee={}));/**
+ * @license
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */class y extends Error{constructor(t){super(`[GoogleGenerativeAI Error]: ${t}`)}}class O extends y{constructor(t,n){super(t),this.response=n}}class re extends y{constructor(t,n,o,s){super(t),this.status=n,this.statusText=o,this.errorDetails=s}}class S extends y{}class ie extends y{}/**
+ * @license
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */const je="https://generativelanguage.googleapis.com",Fe="v1beta",Be="0.24.1",qe="genai-js";var I;(function(e){e.GENERATE_CONTENT="generateContent",e.STREAM_GENERATE_CONTENT="streamGenerateContent",e.COUNT_TOKENS="countTokens",e.EMBED_CONTENT="embedContent",e.BATCH_EMBED_CONTENTS="batchEmbedContents"})(I||(I={}));class He{constructor(t,n,o,s,r){this.model=t,this.task=n,this.apiKey=o,this.stream=s,this.requestOptions=r}toString(){var t,n;const o=((t=this.requestOptions)===null||t===void 0?void 0:t.apiVersion)||Fe;let r=`${((n=this.requestOptions)===null||n===void 0?void 0:n.baseUrl)||je}/${o}/${this.model}:${this.task}`;return this.stream&&(r+="?alt=sse"),r}}function Ke(e){const t=[];return e?.apiClient&&t.push(e.apiClient),t.push(`${qe}/${Be}`),t.join(" ")}async function Ye(e){var t;const n=new Headers;n.append("Content-Type","application/json"),n.append("x-goog-api-client",Ke(e.requestOptions)),n.append("x-goog-api-key",e.apiKey);let o=(t=e.requestOptions)===null||t===void 0?void 0:t.customHeaders;if(o){if(!(o instanceof Headers))try{o=new Headers(o)}catch(s){throw new S(`unable to convert customHeaders value ${JSON.stringify(o)} to Headers: ${s.message}`)}for(const[s,r]of o.entries()){if(s==="x-goog-api-key")throw new S(`Cannot set reserved header name ${s}`);if(s==="x-goog-api-client")throw new S(`Header name ${s} can only be set using the apiClient field`);n.append(s,r)}}return n}async function Je(e,t,n,o,s,r){const i=new He(e,t,n,o,r);return{url:i.toString(),fetchOptions:Object.assign(Object.assign({},Xe(r)),{method:"POST",headers:await Ye(i),body:s})}}async function U(e,t,n,o,s,r={},i=fetch){const{url:a,fetchOptions:l}=await Je(e,t,n,o,s,r);return Ve(a,l,i)}async function Ve(e,t,n=fetch){let o;try{o=await n(e,t)}catch(s){ze(s,e)}return o.ok||await We(o,e),o}function ze(e,t){let n=e;throw n.name==="AbortError"?(n=new ie(`Request aborted when fetching ${t.toString()}: ${e.message}`),n.stack=e.stack):e instanceof re||e instanceof S||(n=new y(`Error fetching from ${t.toString()}: ${e.message}`),n.stack=e.stack),n}async function We(e,t){let n="",o;try{const s=await e.json();n=s.error.message,s.error.details&&(n+=` ${JSON.stringify(s.error.details)}`,o=s.error.details)}catch{}throw new re(`Error fetching from ${t.toString()}: [${e.status} ${e.statusText}] ${n}`,e.status,e.statusText,o)}function Xe(e){const t={};if(e?.signal!==void 0||e?.timeout>=0){const n=new AbortController;e?.timeout>=0&&setTimeout(()=>n.abort(),e.timeout),e?.signal&&e.signal.addEventListener("abort",()=>{n.abort()}),t.signal=n.signal}return t}/**
+ * @license
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */function ae(e){return e.text=()=>{if(e.candidates&&e.candidates.length>0){if(e.candidates.length>1&&console.warn(`This response had ${e.candidates.length} candidates. Returning text from the first candidate only. Access response.candidates directly to use the other candidates.`),P(e.candidates[0]))throw new O(`${v(e)}`,e);return Qe(e)}else if(e.promptFeedback)throw new O(`Text not available. ${v(e)}`,e);return""},e.functionCall=()=>{if(e.candidates&&e.candidates.length>0){if(e.candidates.length>1&&console.warn(`This response had ${e.candidates.length} candidates. Returning function calls from the first candidate only. Access response.candidates directly to use the other candidates.`),P(e.candidates[0]))throw new O(`${v(e)}`,e);return console.warn("response.functionCall() is deprecated. Use response.functionCalls() instead."),he(e)[0]}else if(e.promptFeedback)throw new O(`Function call not available. ${v(e)}`,e)},e.functionCalls=()=>{if(e.candidates&&e.candidates.length>0){if(e.candidates.length>1&&console.warn(`This response had ${e.candidates.length} candidates. Returning function calls from the first candidate only. Access response.candidates directly to use the other candidates.`),P(e.candidates[0]))throw new O(`${v(e)}`,e);return he(e)}else if(e.promptFeedback)throw new O(`Function call not available. ${v(e)}`,e)},e}function Qe(e){var t,n,o,s;const r=[];if(!((n=(t=e.candidates)===null||t===void 0?void 0:t[0].content)===null||n===void 0)&&n.parts)for(const i of(s=(o=e.candidates)===null||o===void 0?void 0:o[0].content)===null||s===void 0?void 0:s.parts)i.text&&r.push(i.text),i.executableCode&&r.push("\n```"+i.executableCode.language+`
+`+i.executableCode.code+"\n```\n"),i.codeExecutionResult&&r.push("\n```\n"+i.codeExecutionResult.output+"\n```\n");return r.length>0?r.join(""):""}function he(e){var t,n,o,s;const r=[];if(!((n=(t=e.candidates)===null||t===void 0?void 0:t[0].content)===null||n===void 0)&&n.parts)for(const i of(s=(o=e.candidates)===null||o===void 0?void 0:o[0].content)===null||s===void 0?void 0:s.parts)i.functionCall&&r.push(i.functionCall);if(r.length>0)return r}const Ze=[A.RECITATION,A.SAFETY,A.LANGUAGE];function P(e){return!!e.finishReason&&Ze.includes(e.finishReason)}function v(e){var t,n,o;let s="";if((!e.candidates||e.candidates.length===0)&&e.promptFeedback)s+="Response was blocked",!((t=e.promptFeedback)===null||t===void 0)&&t.blockReason&&(s+=` due to ${e.promptFeedback.blockReason}`),!((n=e.promptFeedback)===null||n===void 0)&&n.blockReasonMessage&&(s+=`: ${e.promptFeedback.blockReasonMessage}`);else if(!((o=e.candidates)===null||o===void 0)&&o[0]){const r=e.candidates[0];P(r)&&(s+=`Candidate was blocked due to ${r.finishReason}`,r.finishMessage&&(s+=`: ${r.finishMessage}`))}return s}function $(e){return this instanceof $?(this.v=e,this):new $(e)}function et(e,t,n){if(!Symbol.asyncIterator)throw new TypeError("Symbol.asyncIterator is not defined.");var o=n.apply(e,t||[]),s,r=[];return s={},i("next"),i("throw"),i("return"),s[Symbol.asyncIterator]=function(){return this},s;function i(h){o[h]&&(s[h]=function(u){return new Promise(function(p,g){r.push([h,u,p,g])>1||a(h,u)})})}function a(h,u){try{l(o[h](u))}catch(p){f(r[0][3],p)}}function l(h){h.value instanceof $?Promise.resolve(h.value.v).then(c,d):f(r[0][2],h)}function c(h){a("next",h)}function d(h){a("throw",h)}function f(h,u){h(u),r.shift(),r.length&&a(r[0][0],r[0][1])}}/**
+ * @license
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */const ge=/^data\: (.*)(?:\n\n|\r\r|\r\n\r\n)/;function tt(e){const t=e.body.pipeThrough(new TextDecoderStream("utf8",{fatal:!0})),n=st(t),[o,s]=n.tee();return{stream:ot(o),response:nt(s)}}async function nt(e){const t=[],n=e.getReader();for(;;){const{done:o,value:s}=await n.read();if(o)return ae(rt(t));t.push(s)}}function ot(e){return et(this,arguments,function*(){const n=e.getReader();for(;;){const{value:o,done:s}=yield $(n.read());if(s)break;yield yield $(ae(o))}})}function st(e){const t=e.getReader();return new ReadableStream({start(o){let s="";return r();function r(){return t.read().then(({value:i,done:a})=>{if(a){if(s.trim()){o.error(new y("Failed to parse stream"));return}o.close();return}s+=i;let l=s.match(ge),c;for(;l;){try{c=JSON.parse(l[1])}catch{o.error(new y(`Error parsing JSON response: "${l[1]}"`));return}o.enqueue(c),s=s.substring(l[0].length),l=s.match(ge)}return r()}).catch(i=>{let a=i;throw a.stack=i.stack,a.name==="AbortError"?a=new ie("Request aborted when reading from the stream"):a=new y("Error reading from the stream"),a})}}})}function rt(e){const t=e[e.length-1],n={promptFeedback:t?.promptFeedback};for(const o of e){if(o.candidates){let s=0;for(const r of o.candidates)if(n.candidates||(n.candidates=[]),n.candidates[s]||(n.candidates[s]={index:s}),n.candidates[s].citationMetadata=r.citationMetadata,n.candidates[s].groundingMetadata=r.groundingMetadata,n.candidates[s].finishReason=r.finishReason,n.candidates[s].finishMessage=r.finishMessage,n.candidates[s].safetyRatings=r.safetyRatings,r.content&&r.content.parts){n.candidates[s].content||(n.candidates[s].content={role:r.content.role||"user",parts:[]});const i={};for(const a of r.content.parts)a.text&&(i.text=a.text),a.functionCall&&(i.functionCall=a.functionCall),a.executableCode&&(i.executableCode=a.executableCode),a.codeExecutionResult&&(i.codeExecutionResult=a.codeExecutionResult),Object.keys(i).length===0&&(i.text=""),n.candidates[s].content.parts.push(i)}s++}o.usageMetadata&&(n.usageMetadata=o.usageMetadata)}return n}/**
+ * @license
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */async function Ce(e,t,n,o){const s=await U(t,I.STREAM_GENERATE_CONTENT,e,!0,JSON.stringify(n),o);return tt(s)}async function Re(e,t,n,o){const r=await(await U(t,I.GENERATE_CONTENT,e,!1,JSON.stringify(n),o)).json();return{response:ae(r)}}/**
+ * @license
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */function Ie(e){if(e!=null){if(typeof e=="string")return{role:"system",parts:[{text:e}]};if(e.text)return{role:"system",parts:[e]};if(e.parts)return e.role?e:{role:"system",parts:e.parts}}}function D(e){let t=[];if(typeof e=="string")t=[{text:e}];else for(const n of e)typeof n=="string"?t.push({text:n}):t.push(n);return it(t)}function it(e){const t={role:"user",parts:[]},n={role:"function",parts:[]};let o=!1,s=!1;for(const r of e)"functionResponse"in r?(n.parts.push(r),s=!0):(t.parts.push(r),o=!0);if(o&&s)throw new y("Within a single message, FunctionResponse cannot be mixed with other type of part in the request for sending chat message.");if(!o&&!s)throw new y("No content is provided for sending chat message.");return o?t:n}function at(e,t){var n;let o={model:t?.model,generationConfig:t?.generationConfig,safetySettings:t?.safetySettings,tools:t?.tools,toolConfig:t?.toolConfig,systemInstruction:t?.systemInstruction,cachedContent:(n=t?.cachedContent)===null||n===void 0?void 0:n.name,contents:[]};const s=e.generateContentRequest!=null;if(e.contents){if(s)throw new S("CountTokensRequest must have one of contents or generateContentRequest, not both.");o.contents=e.contents}else if(s)o=Object.assign(Object.assign({},o),e.generateContentRequest);else{const r=D(e);o.contents=[r]}return{generateContentRequest:o}}function pe(e){let t;return e.contents?t=e:t={contents:[D(e)]},e.systemInstruction&&(t.systemInstruction=Ie(e.systemInstruction)),t}function ct(e){return typeof e=="string"||Array.isArray(e)?{content:D(e)}:e}/**
+ * @license
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */const me=["text","inlineData","functionCall","functionResponse","executableCode","codeExecutionResult"],lt={user:["text","inlineData"],function:["functionResponse"],model:["text","functionCall","executableCode","codeExecutionResult"],system:["text"]};function dt(e){let t=!1;for(const n of e){const{role:o,parts:s}=n;if(!t&&o!=="user")throw new y(`First content should be with role 'user', got ${o}`);if(!J.includes(o))throw new y(`Each item should include role field. Got ${o} but valid roles are: ${JSON.stringify(J)}`);if(!Array.isArray(s))throw new y("Content should have 'parts' property with an array of Parts");if(s.length===0)throw new y("Each Content should have at least one part");const r={text:0,inlineData:0,functionCall:0,functionResponse:0,fileData:0,executableCode:0,codeExecutionResult:0};for(const a of s)for(const l of me)l in a&&(r[l]+=1);const i=lt[o];for(const a of me)if(!i.includes(a)&&r[a]>0)throw new y(`Content with role '${o}' can't contain '${a}' part`);t=!0}}function we(e){var t;if(e.candidates===void 0||e.candidates.length===0)return!1;const n=(t=e.candidates[0])===null||t===void 0?void 0:t.content;if(n===void 0||n.parts===void 0||n.parts.length===0)return!1;for(const o of n.parts)if(o===void 0||Object.keys(o).length===0||o.text!==void 0&&o.text==="")return!1;return!0}/**
+ * @license
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */const ye="SILENT_ERROR";class _e{constructor(t,n,o,s={}){this.model=n,this.params=o,this._requestOptions=s,this._history=[],this._sendPromise=Promise.resolve(),this._apiKey=t,o?.history&&(dt(o.history),this._history=o.history)}async getHistory(){return await this._sendPromise,this._history}async sendMessage(t,n={}){var o,s,r,i,a,l;await this._sendPromise;const c=D(t),d={safetySettings:(o=this.params)===null||o===void 0?void 0:o.safetySettings,generationConfig:(s=this.params)===null||s===void 0?void 0:s.generationConfig,tools:(r=this.params)===null||r===void 0?void 0:r.tools,toolConfig:(i=this.params)===null||i===void 0?void 0:i.toolConfig,systemInstruction:(a=this.params)===null||a===void 0?void 0:a.systemInstruction,cachedContent:(l=this.params)===null||l===void 0?void 0:l.cachedContent,contents:[...this._history,c]},f=Object.assign(Object.assign({},this._requestOptions),n);let h;return this._sendPromise=this._sendPromise.then(()=>Re(this._apiKey,this.model,d,f)).then(u=>{var p;if(we(u.response)){this._history.push(c);const g=Object.assign({parts:[],role:"model"},(p=u.response.candidates)===null||p===void 0?void 0:p[0].content);this._history.push(g)}else{const g=v(u.response);g&&console.warn(`sendMessage() was unsuccessful. ${g}. Inspect response object for details.`)}h=u}).catch(u=>{throw this._sendPromise=Promise.resolve(),u}),await this._sendPromise,h}async sendMessageStream(t,n={}){var o,s,r,i,a,l;await this._sendPromise;const c=D(t),d={safetySettings:(o=this.params)===null||o===void 0?void 0:o.safetySettings,generationConfig:(s=this.params)===null||s===void 0?void 0:s.generationConfig,tools:(r=this.params)===null||r===void 0?void 0:r.tools,toolConfig:(i=this.params)===null||i===void 0?void 0:i.toolConfig,systemInstruction:(a=this.params)===null||a===void 0?void 0:a.systemInstruction,cachedContent:(l=this.params)===null||l===void 0?void 0:l.cachedContent,contents:[...this._history,c]},f=Object.assign(Object.assign({},this._requestOptions),n),h=Ce(this._apiKey,this.model,d,f);return this._sendPromise=this._sendPromise.then(()=>h).catch(u=>{throw new Error(ye)}).then(u=>u.response).then(u=>{if(we(u)){this._history.push(c);const p=Object.assign({},u.candidates[0].content);p.role||(p.role="model"),this._history.push(p)}else{const p=v(u);p&&console.warn(`sendMessageStream() was unsuccessful. ${p}. Inspect response object for details.`)}}).catch(u=>{u.message!==ye&&console.error(u)}),h}}/**
+ * @license
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */async function ut(e,t,n,o){return(await U(t,I.COUNT_TOKENS,e,!1,JSON.stringify(n),o)).json()}/**
+ * @license
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */async function ft(e,t,n,o){return(await U(t,I.EMBED_CONTENT,e,!1,JSON.stringify(n),o)).json()}async function ht(e,t,n,o){const s=n.requests.map(i=>Object.assign(Object.assign({},i),{model:t}));return(await U(t,I.BATCH_EMBED_CONTENTS,e,!1,JSON.stringify({requests:s}),o)).json()}/**
+ * @license
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */class te{constructor(t,n,o={}){this.apiKey=t,this._requestOptions=o,n.model.includes("/")?this.model=n.model:this.model=`models/${n.model}`,this.generationConfig=n.generationConfig||{},this.safetySettings=n.safetySettings||[],this.tools=n.tools,this.toolConfig=n.toolConfig,this.systemInstruction=Ie(n.systemInstruction),this.cachedContent=n.cachedContent}async generateContent(t,n={}){var o;const s=pe(t),r=Object.assign(Object.assign({},this._requestOptions),n);return Re(this.apiKey,this.model,Object.assign({generationConfig:this.generationConfig,safetySettings:this.safetySettings,tools:this.tools,toolConfig:this.toolConfig,systemInstruction:this.systemInstruction,cachedContent:(o=this.cachedContent)===null||o===void 0?void 0:o.name},s),r)}async generateContentStream(t,n={}){var o;const s=pe(t),r=Object.assign(Object.assign({},this._requestOptions),n);return Ce(this.apiKey,this.model,Object.assign({generationConfig:this.generationConfig,safetySettings:this.safetySettings,tools:this.tools,toolConfig:this.toolConfig,systemInstruction:this.systemInstruction,cachedContent:(o=this.cachedContent)===null||o===void 0?void 0:o.name},s),r)}startChat(t){var n;return new _e(this.apiKey,this.model,Object.assign({generationConfig:this.generationConfig,safetySettings:this.safetySettings,tools:this.tools,toolConfig:this.toolConfig,systemInstruction:this.systemInstruction,cachedContent:(n=this.cachedContent)===null||n===void 0?void 0:n.name},t),this._requestOptions)}async countTokens(t,n={}){const o=at(t,{model:this.model,generationConfig:this.generationConfig,safetySettings:this.safetySettings,tools:this.tools,toolConfig:this.toolConfig,systemInstruction:this.systemInstruction,cachedContent:this.cachedContent}),s=Object.assign(Object.assign({},this._requestOptions),n);return ut(this.apiKey,this.model,o,s)}async embedContent(t,n={}){const o=ct(t),s=Object.assign(Object.assign({},this._requestOptions),n);return ft(this.apiKey,this.model,o,s)}async batchEmbedContents(t,n={}){const o=Object.assign(Object.assign({},this._requestOptions),n);return ht(this.apiKey,this.model,t,o)}}/**
+ * @license
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */class gt{constructor(t){this.apiKey=t}getGenerativeModel(t,n){if(!t.model)throw new y("Must provide a model name. Example: genai.getGenerativeModel({ model: 'my-model-name' })");return new te(this.apiKey,t,n)}getGenerativeModelFromCachedContent(t,n,o){if(!t.name)throw new S("Cached content must contain a `name` field.");if(!t.model)throw new S("Cached content must contain a `model` field.");const s=["model","systemInstruction"];for(const i of s)if(n?.[i]&&t[i]&&n?.[i]!==t[i]){if(i==="model"){const a=n.model.startsWith("models/")?n.model.replace("models/",""):n.model,l=t.model.startsWith("models/")?t.model.replace("models/",""):t.model;if(a===l)continue}throw new S(`Different value for "${i}" specified in modelParams (${n[i]}) and cachedContent (${t[i]})`)}const r=Object.assign(Object.assign({},n),{model:t.model,tools:t.tools,toolConfig:t.toolConfig,systemInstruction:t.systemInstruction,cachedContent:t});return new te(this.apiKey,r,o)}}const pt=Object.freeze(Object.defineProperty({__proto__:null,get BlockReason(){return X},ChatSession:_e,get DynamicRetrievalMode(){return ee},get ExecutableCodeLanguage(){return K},get FinishReason(){return A},get FunctionCallingMode(){return Z},GenerativeModel:te,GoogleGenerativeAI:gt,GoogleGenerativeAIAbortError:ie,GoogleGenerativeAIError:y,GoogleGenerativeAIFetchError:re,GoogleGenerativeAIRequestInputError:S,GoogleGenerativeAIResponseError:O,get HarmBlockThreshold(){return z},get HarmCategory(){return V},get HarmProbability(){return W},get Outcome(){return Y},POSSIBLE_ROLES:J,get SchemaType(){return C},get TaskType(){return Q}},Symbol.toStringTag,{value:"Module"})),mt=new Date,wt=mt.toLocaleDateString("ru-RU"),M={model:"models/gemini-2.5-flash",systemPrompt:`1. Основная роль:
 Ты — «ВИКИ», мудрая и дружелюбная ИИ-помощница и наставница. Отвечаешь с персоналией молодой женщины. Твой собеседник — третьеклассник Андрей.
 2. Ключевая цель:
 Твоя главная задача — развивать любознательность Андрея и учить его мыслить самостоятельно. Ты помогаешь ему как в учебе, так и в познании мира вокруг.
@@ -39,1405 +241,16 @@ const LLM_CONFIG = {
 Тон: Спокойный, дружелюбный, подбадривающий и немного игривый. Не используй смайлики и эмодзи.
 5. Игровой режим:
 Если Андрей предлагает поиграть, придумай короткие задания на заданную им тему. Считай, сколько правильных ответов он дал с первого раза. После правильного ответа сразу давай следующее задание. После каждых 5 заданий спрашивай, хочет ли он продолжить.
-6. Дата сегодня: ${formattedDate}.
+6. Дата сегодня: ${wt}.
 7. Формат ответа — ВСЕГДА строго JSON, без markdown-обёртки и без текста вне JSON:
 {"speak": "...", "show": "..."}
 Поле "speak" — только то, что произносится вслух: все числа, формулы и обозначения словами («пять умножить на три», «икс равно пять»), без markdown, LaTeX, эмодзи и записей вида 2(x+3). Тёплым, живым, поддерживающим тоном.
 Поле "show" — текст для чтения с экрана: может содержать формулы (2(x + 3) + 4x), записи вида x = 5 и markdown.
-Оба поля обязательны и не должны быть пустыми.`,
-    temperature: 0.7,
-    tools: [{
-            googleSearch: {}, // Пустой объект означает, что инструмент включен без доп. настроек
-        }],
-};
-const TTS_CONFIG = {
-    model: 'gemini-2.5-flash-preview-tts',
-    temperature: 0.7,
-    voiceName: 'Laomedeia',
-};
-// TTS service endpoints configuration
-const TTS_ENDPOINTS = {
-    silero: {
-        localhost: 'http://localhost:8000/synthesize/',
-        internet: 'https://your-ngrok-silero-url.ngrok.io/synthesize/' // Replace with actual ngrok URL
-    },
-    vosk: {
-        localhost: 'http://localhost:8080/synthesize/',
-        internet: 'https://celsa-noncelestial-unegregiously.ngrok-free.app/synthesize/' // Current ngrok URL
-    }
-};
-// Function to check if a service is running on localhost
-async function checkLocalhostService(url) {
-    try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
-        const response = await fetch(url, {
-            method: 'POST', // Use POST since the endpoint only accepts POST
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: 'test' }), // Send a test request
-            signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        return response.ok;
-    }
-    catch (error) {
-        console.log(`Localhost service check failed for ${url}:`, error);
-        return false;
-    }
-}
-// Function to check if a message is a model error that should be retried
-function isModelError(message) {
-    if (!message || !message.trim())
-        return false;
-    const errorIndicators = [
-        'rate limit',
-        'quota exceeded',
-        'model overload',
-        'server error',
-        'internal error',
-        'service unavailable',
-        'temporary failure',
-        'try again',
-        'too many requests',
-        //'429',
-        //'500',
-        //'502',
-        '503',
-        '504'
-    ];
-    const lowerMessage = message.toLowerCase();
-    return errorIndicators.some(indicator => lowerMessage.includes(indicator));
-}
-// Function to check if an error is retryable
-function isRetryableError(errorMessage) {
-    if (!errorMessage)
-        return false;
-    const retryableIndicators = [
-        'network',
-        'timeout',
-        'connection',
-        'rate limit',
-        'quota exceeded',
-        'server error',
-        'internal error',
-        'service unavailable',
-        'temporary failure',
-        'try again',
-        'too many requests',
-        '429',
-        '500',
-        '502',
-        '503',
-        '504',
-        'fetch'
-    ];
-    const lowerMessage = errorMessage.toLowerCase();
-    return retryableIndicators.some(indicator => lowerMessage.includes(indicator));
-}
-// Function to make TTS request with localhost fallback
-async function makeTTSRequest(service, text) {
-    const endpoints = TTS_ENDPOINTS[service];
-    if (!endpoints) {
-        throw new Error(`Unknown TTS service: ${service}`);
-    }
-    // First try localhost
-    console.log(`Trying localhost for ${service}: ${endpoints.localhost}`);
-    const isLocalhostRunning = await checkLocalhostService(endpoints.localhost);
-    if (isLocalhostRunning) {
-        console.log(`Using localhost for ${service}`);
-        const response = await fetch(endpoints.localhost, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text })
-        });
-        if (response.ok) {
-            return response;
-        }
-    }
-    // Fallback to internet/ngrok
-    console.log(`Localhost not available, trying internet for ${service}: ${endpoints.internet}`);
-    const response = await fetch(endpoints.internet, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
-    });
-    if (!response.ok) {
-        throw new Error(`Both localhost and internet endpoints failed for ${service}`);
-    }
-    return response;
-}
-// SECURE API CALL FUNCTION WITH LOCAL DEVELOPMENT FALLBACK
-async function callGeminiAPI(prompt, options = {}) {
-    const { model = 'models/gemini-2.5-flash', systemPrompt, temperature = 0.7, useTools = false, provider = 'google', useHistory = true } = options;
-    // Spark gateway (DGX): OpenAI-совместимый /v1/chat/completions напрямую из браузера
-    if (provider === 'spark') {
-        const messages = [];
-        if (systemPrompt)
-            messages.push({ role: 'system', content: systemPrompt });
-        if (useHistory) {
-            for (const m of chatHistory.slice(-10)) {
-                if (m.role === 'user' || m.role === 'assistant') {
-                    messages.push({ role: m.role, content: m.content });
-                }
-            }
-        }
-        messages.push({ role: 'user', content: prompt });
-        const response = await fetch(gatewayBase() + '/v1/chat/completions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model, temperature, messages })
-        });
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`Spark gateway error: ${response.status} ${errText.slice(0, 200)}`);
-        }
-        const data = await response.json();
-        const text = data?.choices?.[0]?.message?.content ?? '';
-        // Оборачиваем в Gemini-подобную форму — остальной код не меняется
-        return { candidates: [{ content: { parts: [{ text }] } }] };
-    }
-    // Check if we're running locally (development mode)
-    const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    if (isLocalDev) {
-        // LOCAL DEVELOPMENT: Use direct API calls with environment variables
-        console.log('🔧 Running in local development mode - using direct API calls');
-        if (provider === 'google') {
-            // Use Google Gemini API directly
-            const { GoogleGenerativeAI } = await import('@google/generative-ai');
-            const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-            if (!apiKey) {
-                throw new Error('VITE_GEMINI_API_KEY environment variable is required for local development');
-            }
-            const genAI = new GoogleGenerativeAI(apiKey);
-            // Use chat session for conversation history if enabled
-            if (useHistory && !geminiChatSession) {
-                const modelInstance = genAI.getGenerativeModel({
-                    model: model,
-                    systemInstruction: systemPrompt,
-                    generationConfig: { temperature },
-                    tools: useTools ? [{
-                            functionDeclarations: [{
-                                    name: 'googleSearch',
-                                    description: 'Search the web for information to answer questions',
-                                    parameters: {
-                                        type: SchemaType.OBJECT,
-                                        properties: {
-                                            query: { type: SchemaType.STRING, description: 'The search query to find information' }
-                                        },
-                                        required: ['query']
-                                    }
-                                }]
-                        }] : undefined
-                });
-                const historyForSession = chatHistory.slice(0, -1);
-                geminiChatSession = modelInstance.startChat({
-                    history: historyForSession.slice(-10).map(msg => ({
-                        role: msg.role === 'assistant' ? 'model' : msg.role,
-                        parts: [{ text: msg.content }]
-                    }))
-                });
-            }
-            let result;
-            if (useHistory && geminiChatSession) {
-                result = await geminiChatSession.sendMessage(prompt);
-            }
-            else {
-                const modelInstance = genAI.getGenerativeModel({
-                    model: model,
-                    systemInstruction: systemPrompt,
-                    generationConfig: { temperature },
-                    tools: useTools ? [{
-                            functionDeclarations: [{
-                                    name: 'googleSearch',
-                                    description: 'Search the web for information to answer questions',
-                                    parameters: {
-                                        type: SchemaType.OBJECT,
-                                        properties: {
-                                            query: { type: SchemaType.STRING, description: 'The search query to find information' }
-                                        },
-                                        required: ['query']
-                                    }
-                                }]
-                        }] : undefined
-                });
-                result = await modelInstance.generateContent(prompt);
-            }
-            const response = result.response;
-            // Convert to the same format as Netlify function
-            return {
-                candidates: [{
-                        content: {
-                            parts: [{
-                                    text: response.text()
-                                }],
-                            role: 'model'
-                        },
-                        finishReason: 'STOP',
-                        index: 0
-                    }]
-            };
-        }
-        else if (provider === 'openrouter') {
-            // Use OpenRouter API directly
-            const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-            if (!apiKey) {
-                throw new Error('VITE_OPENROUTER_API_KEY environment variable is required for local development');
-            }
-            // Build messages array with conversation history
-            const messages = [];
-            // Add system prompt if provided
-            if (systemPrompt) {
-                messages.push({ role: 'system', content: systemPrompt });
-            }
-            // Add conversation history if enabled
-            if (useHistory) {
-                // Add recent messages from history (excluding system messages)
-                const recentMessages = chatHistory.slice(-10).filter(msg => msg.role !== 'system');
-                messages.push(...recentMessages);
-            }
-            // The chatHistory already contains the current user message, so we don't need to add it again.
-            console.log('OpenRouter messages:', messages);
-            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: messages,
-                    temperature: temperature
-                })
-            });
-            if (!response.ok) {
-                const errorData = await response.json();
-                const errorMessage = errorData.error?.message || JSON.stringify(errorData.error);
-                throw new Error(`OpenRouter API Error: ${errorMessage}`);
-            }
-            const data = await response.json();
-            if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-                throw new Error('Unexpected response format from OpenRouter');
-            }
-            const botMessage = data.choices[0].message.content || 'No response content';
-            // Convert to the same format as Gemini for consistency
-            return {
-                candidates: [{
-                        content: {
-                            parts: [{
-                                    text: botMessage
-                                }],
-                            role: 'model'
-                        },
-                        finishReason: 'STOP',
-                        index: 0
-                    }]
-            };
-        }
-        else {
-            throw new Error(`Unsupported provider: ${provider}`);
-        }
-    }
-    else {
-        // PRODUCTION: Use appropriate Netlify function based on provider
-        console.log(`🌐 Running in production mode - using ${provider} Netlify function`);
-        let functionName = 'gemini';
-        if (provider === 'openrouter') {
-            functionName = 'openrouter';
-        }
-        const response = await fetch(`/.netlify/functions/${functionName}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                prompt,
-                model,
-                systemPrompt,
-                temperature,
-                useTools: provider === 'google' ? useTools : false, // Only Google supports function calling
-                useHistory,
-                chatHistory: useHistory ? chatHistory.slice(-10) : []
-            })
-        });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(`API Error: ${errorData.error || response.statusText}`);
-        }
-        const data = await response.json();
-        return data;
-    }
-}
-// LLM Model configurations (simplified for secure approach)
-const LLM_MODELS = {
-    'gemini-default': {
-        model: 'models/gemini-2.5-flash',
-        name: 'Gemini 2.5 Flash',
-        provider: 'google'
-    },
-    'gemini-lite': {
-        model: 'models/gemini-2.5-flash-lite',
-        name: 'Gemini 2.5 Flash Lite',
-        provider: 'google'
-    },
-    'gemini-pro': {
-        model: 'models/gemini-2.5-pro',
-        name: 'Gemini 2.5 Pro',
-        provider: 'google'
-    },
-    'GPT-OSS': {
-        model: 'openai/gpt-oss-20b:free',
-        name: 'GPT-OSS',
-        provider: 'openrouter'
-    },
-    'Longcat': {
-        model: 'meituan/longcat-flash-chat:free',
-        name: 'LongCat',
-        provider: 'openrouter'
-    },
-    'spark-glm': {
-        model: 'glm',
-        name: 'GLM 5.3 Flash (Spark)',
-        provider: 'spark'
-    }
-};
-let currentModelConfig = LLM_MODELS['spark-glm'];
-// Unified chat history for all providers
-let chatHistory = [];
-let geminiChatSession = null; // For Gemini's native chat session
-const chatDiv = document.getElementById('chat');
-const input = document.getElementById('input');
-const sendBtn = document.getElementById('send');
-const llmSelect = document.getElementById('llm-model');
-const ttsSelect = document.getElementById('tts-service');
-const progressContainer = document.getElementById('progress-container');
-const progressBar = document.getElementById('download-progress');
-const progressText = document.getElementById('progress-text');
-let piperLoaded = false;
-let piperModel = null;
-let piperConfig = null;
-sendBtn.addEventListener('click', async () => {
-    const userMessage = input.value.trim();
-    if (!userMessage)
-        return;
-    // Stop any currently playing TTS and clear queue
-    stopCurrentTTS();
-    // Add user message to chat history
-    chatHistory.push({ role: 'user', content: userMessage });
-    addMessage('user', userMessage);
-    input.value = '';
-    // Function to send message with retry logic using secure Netlify function
-    const sendMessageWithRetry = async (message, retryCount = 0) => {
-        const maxRetries = 3;
-        try {
-            // Use secure Netlify function instead of direct API call
-            const data = await callGeminiAPI(message, {
-                model: currentModelConfig.model,
-                systemPrompt: LLM_CONFIG.systemPrompt,
-                temperature: LLM_CONFIG.temperature,
-                useTools: currentModelConfig.provider === 'google',
-                provider: currentModelConfig.provider // <-- ADD THIS LINE
-            });
-            // Extract the response text from the Netlify function response
-            let botMessage = '';
-            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-                const content = data.candidates[0].content;
-                if (content.parts && content.parts[0] && content.parts[0].text) {
-                    botMessage = content.parts[0].text;
-                }
-            }
-            // Check if the model wants to use a tool (function calling)
-            if (data.candidates && data.candidates[0] && data.candidates[0].content &&
-                data.candidates[0].content.parts && data.candidates[0].content.parts[0] &&
-                data.candidates[0].content.parts[0].functionCall) {
-                console.log("Model wants to use search!");
-                const functionCall = data.candidates[0].content.parts[0].functionCall;
-                if (functionCall.name === 'googleSearch' && functionCall.args && functionCall.args.query) {
-                    // Perform the search using our secure function
-                    const searchResults = await performGoogleSearch(functionCall.args.query);
-                    // Send the search results back to the model for a final response
-                    const followUpData = await callGeminiAPI(`Based on this search result, please answer the user's question: "${message}"\n\nSearch Results:\n${searchResults}`, {
-                        model: currentModelConfig.model,
-                        systemPrompt: LLM_CONFIG.systemPrompt,
-                        temperature: LLM_CONFIG.temperature,
-                        useTools: false // Don't use tools in follow-up
-                    });
-                    // Extract the final response
-                    if (followUpData.candidates && followUpData.candidates[0] && followUpData.candidates[0].content &&
-                        followUpData.candidates[0].content.parts && followUpData.candidates[0].content.parts[0]) {
-                        botMessage = followUpData.candidates[0].content.parts[0].text || '';
-                    }
-                }
-            }
-            // Двойной вывод: {"speak","show"} — говорим speak, показываем show
-            const rawBotMessage = botMessage;
-            let speakMessage = botMessage;
-            const dualOutput = parseDualOutput(botMessage);
-            if (dualOutput) {
-                speakMessage = dualOutput.speak;
-                botMessage = dualOutput.show;
-            }
-            // Only add message if it's not empty and not an error
-            if (botMessage && botMessage.trim() && !isModelError(botMessage)) {
-                // Add bot message to chat history (raw JSON сохраняет формат)
-                chatHistory.push({ role: 'assistant', content: rawBotMessage });
-                addMessage('bot', botMessage, false, speakMessage);
-            }
-            else if (botMessage && botMessage.trim()) {
-                console.warn('Model returned error message, retrying:', botMessage);
-                if (retryCount < maxRetries) {
-                    console.log(`Retrying message (attempt ${retryCount + 1}/${maxRetries})`);
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
-                    return sendMessageWithRetry(message, retryCount + 1);
-                }
-            }
-            else if (!botMessage || !botMessage.trim()) {
-                console.warn('Model returned empty message, retrying');
-                if (retryCount < maxRetries) {
-                    console.log(`Retrying message (attempt ${retryCount + 1}/${maxRetries})`);
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
-                    return sendMessageWithRetry(message, retryCount + 1);
-                }
-            }
-        }
-        catch (error) {
-            const errorMessage = error.message;
-            // Check if this is a retryable error
-            if (isRetryableError(errorMessage) && retryCount < maxRetries) {
-                console.warn(`Network/model error, retrying: ${errorMessage}`);
-                console.log(`Retrying message (attempt ${retryCount + 1}/${maxRetries})`);
-                await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry for network errors
-                return sendMessageWithRetry(message, retryCount + 1);
-            }
-            else {
-                // Non-retryable error or max retries reached
-                console.error('Final error after retries:', errorMessage);
-                addMessage('bot', 'Извините, произошла ошибка при обработке сообщения. Попробуйте еще раз.');
-            }
-        }
-    };
-    // Start the message sending process
-    await sendMessageWithRetry(userMessage);
-});
-input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-        sendBtn.click();
-    }
-});
-// LLM Model selector event listener
-llmSelect.addEventListener('change', async () => {
-    const selectedModel = llmSelect.value;
-    if (selectedModel in LLM_MODELS) {
-        await switchToModel(selectedModel);
-    }
-});
-// Function to switch to a different LLM model
-async function switchToModel(modelKey) {
-    try {
-        const modelConfig = LLM_MODELS[modelKey];
-        if (!modelConfig) {
-            throw new Error(`Model configuration not found for: ${modelKey}`);
-        }
-        currentModelConfig = modelConfig;
-        // Clear chat history when switching models
-        chatHistory = [];
-        geminiChatSession = null;
-        console.log(`Switched to model: ${modelConfig.name}`);
-        addMessage('bot', `Переключено на модель: ${modelConfig.name}`, true); // Skip TTS for system messages
-    }
-    catch (error) {
-        console.error('Error switching model:', error);
-        addMessage('bot', 'Ошибка при переключении модели: ' + error.message);
-    }
-}
-// Function to create OpenRouter chat instance
-async function createOpenRouterChat(modelConfig) {
-    // For OpenRouter, we'll create a simple chat handler
-    const openRouterChat = {
-        async sendMessage(message) {
-            try {
-                // Add user message to history
-                chatHistory.push({ role: 'user', content: message });
-                // Build messages array with system prompt + last 10 messages from history
-                const messages = [
-                    {
-                        role: 'system',
-                        content: LLM_CONFIG.systemPrompt
-                    },
-                    ...chatHistory.slice(-10) // Keep only last 10 messages for context
-                ];
-                const requestBody = {
-                    model: modelConfig.model,
-                    messages: messages,
-                    temperature: LLM_CONFIG.temperature
-                };
-                const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${modelConfig.apiKey}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(requestBody)
-                });
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
-                }
-                const data = await response.json();
-                // Check if the response has the expected structure
-                if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-                    throw new Error('Unexpected response format from OpenRouter');
-                }
-                const botMessage = data.choices[0].message.content || 'No response content';
-                // Add bot response to history
-                chatHistory.push({ role: 'assistant', content: botMessage });
-                return {
-                    response: {
-                        text: () => botMessage,
-                        functionCalls: () => null // OpenRouter doesn't support function calls in the same way
-                    }
-                };
-            }
-            catch (error) {
-                console.error('OpenRouter request failed:', error);
-                throw error;
-            }
-        }
-    };
-    return openRouterChat;
-}
-// Global audio state management
-let currentAudio = null;
-let isTTSCancelled = false;
-function stopCurrentTTS() {
-    if (currentAudio) {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
-        currentAudio = null;
-    }
-    isTTSCancelled = true;
-}
-// Извлекает двойной вывод LLM: {"speak": "...", "show": "..."}
-function parseDualOutput(raw) {
-    if (!raw)
-        return null;
-    const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-    const candidate = fenced ? fenced[1] : raw;
-    const start = candidate.indexOf('{');
-    const end = candidate.lastIndexOf('}');
-    if (start === -1 || end <= start)
-        return null;
-    try {
-        const obj = JSON.parse(candidate.slice(start, end + 1));
-        if (obj && typeof obj.speak === 'string' && typeof obj.show === 'string'
-            && obj.speak.trim() && obj.show.trim()) {
-            return { speak: obj.speak, show: obj.show };
-        }
-    }
-    catch (_) { /* не JSON — обычный текст, вернём null */ }
-    return null;
-}
-function addMessage(type, text, skipTTS = false, speakOverride) {
-    const msgDiv = document.createElement('div');
-    msgDiv.className = `message ${type}`;
-    msgDiv.innerHTML = `<span>${text}</span>`;
-    if (type === 'bot' && !skipTTS) {
-        const playBtn = document.createElement('button');
-        playBtn.textContent = 'Replay';
-        playBtn.addEventListener('click', () => {
-            speak(speakOverride || text);
-        });
-        msgDiv.appendChild(playBtn);
-        // Instant TTS
-        speak(speakOverride || text);
-    }
-    chatDiv.appendChild(msgDiv);
-    chatDiv.scrollTop = chatDiv.scrollHeight;
-}
-async function speak(text) {
-    const service = ttsSelect.value;
-    // Reset cancellation flag when starting new TTS
-    isTTSCancelled = false;
-    try {
-        if (service === 'gemini') {
-            await speakWithGemini(text);
-        }
-        else if (service === 'google-cloud') {
-            try {
-                await speakWithGoogleCloud(text);
-            }
-            catch (error) {
-                console.warn('Google Cloud TTS failed, falling back to Gemini TTS:', error);
-                await speakWithGemini(text);
-            }
-        }
-        else if (service === 'piper') {
-            await speakWithPiper(text);
-        }
-        else if (service === 'silero') {
-            await speakWithSilero(text);
-        }
-        else if (service === 'vosk') {
-            await speakWithVosk(text);
-        }
-        else if (service === 'spark') {
-            await speakWithSpark(text);
-        }
-    }
-    catch (error) {
-        console.error('Speech synthesis error:', error);
-        // Attempt to use browser's built-in TTS as fallback
-        const utterance = new SpeechSynthesisUtterance(text);
-        window.speechSynthesis.speak(utterance);
-    }
-}
-// Spark TTS: клон голоса через гейтвей DGX (OpenAI-совместимый /v1/audio/speech)
-// https-страница (Netlify) не может звать http://LAN (mixed content) — идём через туннель
-const GATEWAY_HTTPS_URL = 'https://dig-investment-satisfy-pencil.trycloudflare.com';
-function gatewayBase() {
-    return location.protocol === 'https:' ? GATEWAY_HTTPS_URL : 'http://192.168.1.201:8000';
-}
-async function speakWithSpark(text) {
-    // Клон голоса живёт в qwen: auto-режим отдаёт silero, пока qwen холодная.
-    // Просим qwen явно (первый запрос после простоя грузит её ~30 с), откат — auto.
-    const call = (engine) => fetch(gatewayBase() + '/v1/audio/speech', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            model: 'tts',
-            input: text,
-            voice: 'default',
-            engine: engine,
-            response_format: 'mp3'
-        })
-    });
-    let response = await call('qwen');
-    if (!response.ok) {
-        console.warn('Spark TTS: qwen недоступна (', response.status, '), пробую auto');
-        response = await call('auto');
-    }
-    if (!response.ok) {
-        throw new Error(`Spark TTS error: ${response.status}`);
-    }
-    const audioBlob = await response.blob();
-    const audioUrl = URL.createObjectURL(audioBlob);
-    const audio = new Audio(audioUrl);
-    currentAudio = audio;
-    audio.play();
-    audio.onended = () => URL.revokeObjectURL(audioUrl);
-}
-async function speakWithGemini(text) {
-    try {
-        // Check if we're running locally (development mode)
-        const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        if (isLocalDev) {
-            // LOCAL DEVELOPMENT: Use direct Google Cloud Text-to-Speech API
-            console.log('🔧 Running Gemini TTS in local development mode');
-            const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-            if (!apiKey) {
-                console.warn('Gemini API key not configured for local development, falling back to browser TTS');
-                const utterance = new SpeechSynthesisUtterance(text);
-                window.speechSynthesis.speak(utterance);
-                return;
-            }
-            const ttsRequestBody = {
-                input: {
-                    text: text
-                },
-                voice: {
-                    languageCode: 'en-US',
-                    name: TTS_CONFIG.voiceName
-                },
-                audioConfig: {
-                    audioEncoding: 'MP3',
-                    speakingRate: 1.0,
-                    pitch: 0.0
-                }
-            };
-            const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(ttsRequestBody)
-            });
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Gemini TTS API error:', errorData);
-                throw new Error(`TTS API Error: ${response.statusText}`);
-            }
-            const data = await response.json();
-            if (!data.audioContent) {
-                throw new Error('No audio content received from Gemini TTS');
-            }
-            // Convert base64 to audio blob and play
-            const audioBuffer = Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0));
-            const audioBlob = new Blob([audioBuffer], { type: 'audio/mpeg' });
-            const audioUrl = URL.createObjectURL(audioBlob);
-            const audio = new Audio(audioUrl);
-            audio.play();
-            // Clean up the URL after playing
-            audio.onended = () => URL.revokeObjectURL(audioUrl);
-        }
-        else {
-            // PRODUCTION: Use Netlify function
-            console.log('🌐 Running Gemini TTS via Netlify function');
-            // Add timeout handling for long-running TTS requests
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 70000); // 70 seconds timeout
-            try {
-                const response = await fetch('/.netlify/functions/gemini-tts', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        text: text,
-                        voiceName: TTS_CONFIG.voiceName,
-                        temperature: TTS_CONFIG.temperature
-                    }),
-                    signal: controller.signal
-                });
-                clearTimeout(timeoutId);
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    console.error('Gemini TTS Netlify function error:', errorData);
-                    throw new Error(`TTS API Error: ${response.statusText}`);
-                }
-                // Get audio blob from response
-                const audioBlob = await response.blob();
-                const audioUrl = URL.createObjectURL(audioBlob);
-                const audio = new Audio(audioUrl);
-                audio.play();
-                // Clean up the URL after playing
-                audio.onended = () => URL.revokeObjectURL(audioUrl);
-            }
-            catch (fetchError) {
-                clearTimeout(timeoutId);
-                if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-                    console.error('Gemini TTS request timed out after 70 seconds');
-                    throw new Error('TTS request timed out. The service may be busy.');
-                }
-                throw fetchError;
-            }
-        }
-    }
-    catch (error) {
-        console.error('Gemini TTS error:', error);
-        // Fallback to browser TTS
-        const utterance = new SpeechSynthesisUtterance(text);
-        window.speechSynthesis.speak(utterance);
-    }
-}
-async function speakWithGoogleCloud(text) {
-    try {
-        // For now, we'll use browser TTS as the Google Cloud TTS requires a separate API key
-        // You can implement this later with a separate Netlify function for TTS
-        console.log('Google Cloud TTS not implemented yet, using browser TTS');
-        const utterance = new SpeechSynthesisUtterance(text);
-        window.speechSynthesis.speak(utterance);
-    }
-    catch (error) {
-        console.error('Google Cloud TTS error:', error);
-        // Fallback to browser TTS
-        const utterance = new SpeechSynthesisUtterance(text);
-        window.speechSynthesis.speak(utterance);
-    }
-}
-async function downloadWithProgress(url, onProgress) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds timeout
-    try {
-        const response = await fetch(url, { signal: controller.signal });
-        const contentLength = response.headers.get('content-length');
-        const total = contentLength ? parseInt(contentLength) : 0;
-        const reader = response.body.getReader();
-        const chunks = [];
-        let loaded = 0;
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done)
-                break;
-            chunks.push(value);
-            loaded += value.length;
-            onProgress(loaded, total);
-        }
-        const blob = new Blob(chunks);
-        return blob.arrayBuffer();
-    }
-    finally {
-        clearTimeout(timeoutId);
-    }
-}
-async function waitForPhonemizer() {
-    return new Promise((resolve, reject) => {
-        let tries = 0;
-        function check() {
-            const piper = window.createPiperPhonemize;
-            if (piper && typeof piper === 'function') {
-                resolve(piper);
-            }
-            else if (++tries > 50) {
-                reject(new Error('Piper phonemization module not loaded correctly'));
-            }
-            else {
-                setTimeout(check, 100);
-            }
-        }
-        check();
-    });
-}
-async function phonemeIds(text) {
-    const createPhonemizer = await waitForPhonemizer();
-    return new Promise((resolve, reject) => {
-        const phonemizer = createPhonemizer({
-            print: (data) => {
-                try {
-                    resolve(JSON.parse(data).phoneme_ids);
-                }
-                catch (e) {
-                    reject(new Error('Failed to parse phonemizer output'));
-                }
-            },
-            printErr: (message) => {
-                console.error('Phonemizer error:', message);
-                reject(new Error(message));
-            },
-            locateFile: (url) => {
-                if (url.endsWith('.wasm'))
-                    return 'https://huggingface.co/rhasspy/piper-voices/raw/main/piper_phonemize.wasm';
-                if (url.endsWith('.data'))
-                    return 'https://huggingface.co/rhasspy/piper-voices/raw/main/piper_phonemize.data';
-                return url;
-            }
-        });
-        phonemizer.callMain([
-            '-l', 'ru_RU',
-            '--input', JSON.stringify([{ text }]),
-            '--espeak_data', '/espeak-ng-data'
-        ]);
-    });
-}
-async function loadPiper() {
-    if (piperLoaded)
-        return;
-    console.log('Starting Piper model loading...');
-    progressContainer.style.display = 'block';
-    progressText.textContent = 'Downloading model...';
-    console.log('Downloading Piper model...');
-    const modelUrl = 'https://huggingface.co/wide-video/piper-voices-v1.0.1/resolve/main/ru/ru_RU/irina/medium/ru_RU-irina-medium.onnx';
-    const configUrl = 'https://huggingface.co/wide-video/piper-voices-v1.0.1/resolve/main/ru/ru_RU/irina/medium/ru_RU-irina-medium.onnx.json';
-    piperModel = await downloadWithProgress(modelUrl, (loaded, total) => {
-        const percent = total ? (loaded / total) * 50 : 0;
-        progressBar.value = percent;
-    });
-    console.log('Piper model downloaded successfully.');
-    progressText.textContent = 'Downloading config...';
-    console.log('Downloading Piper config...');
-    const configResponse = await fetch(configUrl);
-    piperConfig = await configResponse.json();
-    progressBar.value = 60;
-    console.log('Piper config downloaded successfully.');
-    progressText.textContent = 'Loading...';
-    console.log('Waiting for dependencies to load...');
-    // Log initial dependency states
-    const startTime = Date.now();
-    console.log(`[${new Date().toISOString()}] Starting dependency check...`);
-    console.log(`[${new Date().toISOString()}] Initial piper availability:`, typeof window.piper);
-    console.log(`[${new Date().toISOString()}] Initial ort availability:`, typeof window.ort);
-    // Wait for dependencies with timeout
-    let waitCount = 0;
-    let piperReady = false;
-    let ortReady = false;
-    while ((!window.piper || !window.ort) && waitCount < 300) { // 30 seconds timeout
-        await new Promise(resolve => setTimeout(resolve, 100));
-        waitCount++;
-        // Check individual dependencies and log changes
-        const currentPiper = !!window.piper;
-        const currentOrt = !!window.ort;
-        if (currentPiper && !piperReady) {
-            piperReady = true;
-            console.log(`[${new Date().toISOString()}] Piper dependency loaded after ${waitCount * 100}ms`);
-        }
-        if (currentOrt && !ortReady) {
-            ortReady = true;
-            console.log(`[${new Date().toISOString()}] ONNX Runtime (ort) dependency loaded after ${waitCount * 100}ms`);
-        }
-        // Log progress every 5 seconds (50 iterations)
-        if (waitCount % 50 === 0) {
-            const elapsed = Date.now() - startTime;
-            console.log(`[${new Date().toISOString()}] Still waiting... (${elapsed}ms elapsed, ${waitCount}/300 attempts)`);
-            console.log(`[${new Date().toISOString()}] Current piper status:`, currentPiper ? 'READY' : 'NOT READY');
-            console.log(`[${new Date().toISOString()}] Current ort status:`, currentOrt ? 'READY' : 'NOT READY');
-        }
-    }
-    const totalElapsed = Date.now() - startTime;
-    if (waitCount >= 300) {
-        console.error(`[${new Date().toISOString()}] DEPENDENCY LOAD FAILURE - Timeout after ${totalElapsed}ms`);
-        console.error(`[${new Date().toISOString()}] Final piper status:`, piperReady ? 'LOADED' : 'FAILED TO LOAD');
-        console.error(`[${new Date().toISOString()}] Final ort status:`, ortReady ? 'LOADED' : 'FAILED TO LOAD');
-        console.error(`[${new Date().toISOString()}] Network status:`, navigator.onLine ? 'ONLINE' : 'OFFLINE');
-        // Try to detect script loading errors
-        const scripts = document.querySelectorAll('script');
-        console.log(`[${new Date().toISOString()}] Checking script loading status...`);
-        scripts.forEach((script, index) => {
-            if (script.src.includes('piper') || script.src.includes('ort')) {
-                const readyState = script.readyState || 'unknown';
-                console.log(`[${new Date().toISOString()}] Script ${index}: ${script.src} - readyState: ${readyState}`);
-            }
-        });
-        throw new Error(`Dependencies failed to load within timeout (${totalElapsed}ms). Piper: ${piperReady ? 'OK' : 'FAILED'}, ONNX: ${ortReady ? 'OK' : 'FAILED'}`);
-    }
-    console.log(`[${new Date().toISOString()}] SUCCESS - All dependencies loaded in ${totalElapsed}ms`);
-    console.log(`[${new Date().toISOString()}] Piper ready: ${piperReady}, ONNX Runtime ready: ${ortReady}`);
-    console.log('Dependencies loaded.');
-    // Set ONNX environment
-    if (typeof window.ort !== 'undefined') {
-        window.ort.env.wasm.numThreads = navigator.hardwareConcurrency;
-        window.ort.env.wasm.wasmPaths = 'https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.17.1/';
-    }
-    progressBar.value = 100;
-    progressText.textContent = 'Ready';
-    setTimeout(() => progressContainer.style.display = 'none', 1000);
-    piperLoaded = true;
-    console.log('Piper loading complete.');
-}
-async function speakWithPiper(text) {
-    if (!piperLoaded) {
-        await loadPiper();
-    }
-    console.log('Generating phonemes...');
-    const ids = await phonemeIds(text);
-    console.log('Phonemes generated.');
-    const sampleRate = piperConfig.audio.sample_rate;
-    const numChannels = 1;
-    const noiseScale = piperConfig.inference.noise_scale;
-    const lengthScale = piperConfig.inference.length_scale;
-    const noiseW = piperConfig.inference.noise_w;
-    console.log('Creating ONNX session...');
-    const session = await window.ort.InferenceSession.create(URL.createObjectURL(new Blob([piperModel])));
-    const feeds = {
-        input: new window.ort.Tensor('int64', ids, [1, ids.length]),
-        input_lengths: new window.ort.Tensor('int64', [ids.length]),
-        scales: new window.ort.Tensor('float32', [noiseScale, lengthScale, noiseW])
-    };
-    if (Object.keys(piperConfig.speaker_id_map).length) {
-        feeds.sid = new window.ort.Tensor('int64', [0]);
-    }
-    console.log('Running inference...');
-    const { output: { data: pcm } } = await session.run(feeds);
-    console.log('Inference complete.');
-    const wavBuffer = PCM2WAV(pcm, sampleRate, numChannels);
-    const file = new Blob([wavBuffer], { type: 'audio/x-wav' });
-    const audio = new Audio(URL.createObjectURL(file));
-    audio.play();
-}
-async function performGoogleSearch(query) {
-    // Check if we're running locally (development mode)
-    const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    if (isLocalDev) {
-        // LOCAL DEVELOPMENT: Use direct Google Custom Search API
-        console.log('🔧 Running Google Search in local development mode');
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-        const cx = import.meta.env.VITE_GOOGLE_SEARCH_CX;
-        if (!apiKey || !cx) {
-            console.warn('Google Search API keys not configured for local development');
-            return `Search functionality requires API configuration. Query: "${query}"`;
-        }
-        try {
-            const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&num=3`;
-            const response = await fetch(searchUrl);
-            if (response.ok) {
-                const data = await response.json();
-                if (data.items && data.items.length > 0) {
-                    const results = data.items.slice(0, 3).map((item) => `${item.title}\n${item.snippet}`).join('\n\n');
-                    return results;
-                }
-                else {
-                    return 'No results found.';
-                }
-            }
-            else {
-                console.error('Google Search API error:', response.status);
-                return `Search failed with status ${response.status}. Query: "${query}"`;
-            }
-        }
-        catch (error) {
-            console.error('Google Search error:', error);
-            return `Search error: ${error.message}. Query: "${query}"`;
-        }
-    }
-    else {
-        // PRODUCTION: Use Netlify function
-        console.log('🌐 Running Google Search via Netlify function');
-        try {
-            const response = await fetch('/.netlify/functions/performgooglesearch', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ query })
-            });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`Search API Error: ${errorData.error || response.statusText}`);
-            }
-            const data = await response.json();
-            return data.results || 'No search results available.';
-        }
-        catch (error) {
-            console.error('Netlify Google Search function error:', error);
-            return `Search failed: ${error.message}. Query: "${query}"`;
-        }
-    }
-}
-function splitIntoSentences(text) {
-    // Split on period, question mark, or exclamation mark followed by space or end
-    const sentences = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
-    return sentences;
-}
-async function speakWithSilero(text) {
-    try {
-        console.log("Processing text with Silero:", text);
-        // Check if TTS was cancelled before starting
-        if (isTTSCancelled) {
-            console.log("TTS was cancelled, skipping Silero processing");
-            return;
-        }
-        // Split text into sentences
-        const sentences = splitIntoSentences(text);
-        if (sentences.length === 0) {
-            console.warn("No valid sentences found in text");
-            return;
-        }
-        console.log(`Processing ${sentences.length} sentence(s)...`);
-        // Queue to hold audio blobs as they become ready
-        const audioQueue = [];
-        let isPlaying = false;
-        let currentIndex = 0;
-        let nextRequestIndex = 0;
-        let allRequestsSent = false;
-        // Function to play next audio in queue
-        const playNextAudio = async () => {
-            // Check if cancelled before playing
-            if (isTTSCancelled) {
-                console.log("TTS cancelled, stopping playback");
-                return;
-            }
-            if (isPlaying || currentIndex >= audioQueue.length) {
-                return;
-            }
-            isPlaying = true;
-            const audioBlob = audioQueue[currentIndex];
-            const audioUrl = URL.createObjectURL(audioBlob);
-            const audio = new Audio(audioUrl);
-            currentAudio = audio; // Set global audio reference
-            console.log(`Playing audio segment ${currentIndex + 1}/${sentences.length}`);
-            // Play current segment
-            audio.onended = () => {
-                console.log(`Finished playing audio segment ${currentIndex + 1}`);
-                URL.revokeObjectURL(audioUrl);
-                currentAudio = null; // Clear global reference
-                currentIndex++;
-                isPlaying = false;
-                // Immediately try to play the next available segment
-                playNextAudio();
-            };
-            audio.onerror = (e) => {
-                console.error(`Error playing audio segment ${currentIndex + 1}`, e);
-                URL.revokeObjectURL(audioUrl);
-                currentAudio = null; // Clear global reference
-                currentIndex++;
-                isPlaying = false;
-                playNextAudio(); // Try next one even if this fails
-            };
-            try {
-                await audio.play();
-            }
-            catch (e) {
-                console.error(`audio.play() failed for segment ${currentIndex + 1}`, e);
-                currentAudio = null; // Clear global reference
-                isPlaying = false;
-                currentIndex++;
-                playNextAudio();
-            }
-        };
-        // Function to send next synthesis request
-        const sendNextRequest = async () => {
-            // Check if cancelled before sending request
-            if (isTTSCancelled) {
-                console.log("TTS cancelled, stopping request processing");
-                return;
-            }
-            if (nextRequestIndex >= sentences.length) {
-                allRequestsSent = true;
-                return; // All requests sent
-            }
-            const sentenceIndex = nextRequestIndex;
-            nextRequestIndex++;
-            try {
-                console.log(`Starting synthesis for sentence ${sentenceIndex + 1}: "${sentences[sentenceIndex].trim()}"`);
-                const response = await makeTTSRequest('silero', sentences[sentenceIndex].trim());
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    console.error(`Failed to synthesize sentence ${sentenceIndex + 1}:`, errorData.detail);
-                }
-                else {
-                    const audioBlob = await response.blob();
-                    console.log(`Synthesis completed for sentence ${sentenceIndex + 1}, adding to queue`);
-                    audioQueue.push(audioBlob);
-                    if (!isPlaying && !isTTSCancelled) {
-                        playNextAudio();
-                    }
-                }
-            }
-            catch (error) {
-                console.error(`Error synthesizing sentence ${sentenceIndex + 1}:`, error);
-            }
-            finally {
-                // Immediately send the next request if not cancelled
-                if (!isTTSCancelled) {
-                    sendNextRequest();
-                }
-            }
-        };
-        // Start the process
-        sendNextRequest();
-        // Wait for all audio to be played
-        await new Promise(resolve => {
-            const checkCompletion = () => {
-                if (isTTSCancelled) {
-                    console.log("TTS cancelled, resolving early");
-                    resolve();
-                    return;
-                }
-                if (allRequestsSent && currentIndex >= sentences.length && !isPlaying) {
-                    console.log("All audio segments processed and played successfully");
-                    resolve();
-                }
-                else {
-                    setTimeout(checkCompletion, 100);
-                }
-            };
-            checkCompletion();
-        });
-    }
-    catch (error) {
-        console.error('Error in Silero TTS processing:', error);
-        throw error;
-    }
-}
-async function speakWithVosk(text) {
-    try {
-        console.log("Processing text with Vosk:", text);
-        // Check if TTS was cancelled before starting
-        if (isTTSCancelled) {
-            console.log("TTS was cancelled, skipping Vosk processing");
-            return;
-        }
-        // Split text into sentences
-        const sentences = splitIntoSentences(text);
-        if (sentences.length === 0) {
-            console.warn("No valid sentences found in text");
-            return;
-        }
-        console.log(`Processing ${sentences.length} sentence(s)...`);
-        // Queue to hold audio blobs as they become ready
-        const audioQueue = [];
-        let isPlaying = false;
-        let currentIndex = 0;
-        let nextRequestIndex = 0;
-        let allRequestsSent = false;
-        // Function to play next audio in queue
-        const playNextAudio = async () => {
-            // Check if cancelled before playing
-            if (isTTSCancelled) {
-                console.log("TTS cancelled, stopping playback");
-                return;
-            }
-            if (isPlaying || currentIndex >= audioQueue.length) {
-                return;
-            }
-            isPlaying = true;
-            const audioBlob = audioQueue[currentIndex];
-            const audioUrl = URL.createObjectURL(audioBlob);
-            const audio = new Audio(audioUrl);
-            currentAudio = audio; // Set global audio reference
-            console.log(`Playing audio segment ${currentIndex + 1}/${sentences.length}`);
-            // Play current segment
-            audio.onended = () => {
-                console.log(`Finished playing audio segment ${currentIndex + 1}`);
-                URL.revokeObjectURL(audioUrl);
-                currentAudio = null; // Clear global reference
-                currentIndex++;
-                isPlaying = false;
-                // Immediately try to play the next available segment
-                playNextAudio();
-            };
-            audio.onerror = (e) => {
-                console.error(`Error playing audio segment ${currentIndex + 1}`, e);
-                URL.revokeObjectURL(audioUrl);
-                currentAudio = null; // Clear global reference
-                currentIndex++;
-                isPlaying = false;
-                playNextAudio(); // Try next one even if this fails
-            };
-            try {
-                await audio.play();
-            }
-            catch (e) {
-                console.error(`audio.play() failed for segment ${currentIndex + 1}`, e);
-                currentAudio = null; // Clear global reference
-                isPlaying = false;
-                currentIndex++;
-                playNextAudio();
-            }
-        };
-        // Function to send next synthesis request
-        const sendNextRequest = async () => {
-            // Check if cancelled before sending request
-            if (isTTSCancelled) {
-                console.log("TTS cancelled, stopping request processing");
-                return;
-            }
-            if (nextRequestIndex >= sentences.length) {
-                allRequestsSent = true;
-                return; // All requests sent
-            }
-            const sentenceIndex = nextRequestIndex;
-            nextRequestIndex++;
-            try {
-                console.log(`Starting synthesis for sentence ${sentenceIndex + 1}: "${sentences[sentenceIndex].trim()}"`);
-                const response = await makeTTSRequest('vosk', sentences[sentenceIndex].trim());
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    console.error(`Failed to synthesize sentence ${sentenceIndex + 1}:`, errorData.detail);
-                }
-                else {
-                    const audioBlob = await response.blob();
-                    console.log(`Synthesis completed for sentence ${sentenceIndex + 1}, adding to queue`);
-                    audioQueue.push(audioBlob);
-                    if (!isPlaying && !isTTSCancelled) {
-                        playNextAudio();
-                    }
-                }
-            }
-            catch (error) {
-                console.error(`Error synthesizing sentence ${sentenceIndex + 1}:`, error);
-            }
-            finally {
-                // Immediately send the next request if not cancelled
-                if (!isTTSCancelled) {
-                    sendNextRequest();
-                }
-            }
-        };
-        // Start the process
-        sendNextRequest();
-        // Wait for all audio to be played
-        await new Promise(resolve => {
-            const checkCompletion = () => {
-                if (isTTSCancelled) {
-                    console.log("TTS cancelled, resolving early");
-                    resolve();
-                    return;
-                }
-                // We check against sentences.length because some requests might fail, but we still need to know when we're done.
-                if (allRequestsSent && currentIndex >= sentences.length && !isPlaying) {
-                    console.log("All audio segments processed and played successfully");
-                    resolve();
-                }
-                else {
-                    setTimeout(checkCompletion, 100);
-                }
-            };
-            checkCompletion();
-        });
-    }
-    catch (error) {
-        console.error('Error in Vosk TTS processing:', error);
-        throw error;
-    }
-}
-function convertToWav(rawData, mimeType) {
-    const options = parseMimeType(mimeType);
-    const dataLength = atob(rawData).length;
-    const wavHeader = createWavHeader(dataLength, options);
-    const dataBuffer = new Uint8Array(atob(rawData).split('').map(c => c.charCodeAt(0)));
-    const combined = new Uint8Array(wavHeader.length + dataBuffer.length);
-    combined.set(wavHeader, 0);
-    combined.set(dataBuffer, wavHeader.length);
-    return combined;
-}
-function parseMimeType(mimeType) {
-    const [fileType, ...params] = mimeType.split(';').map(s => s.trim());
-    const [_, format] = fileType.split('/');
-    const options = {
-        numChannels: 1,
-    };
-    if (format && format.startsWith('L')) {
-        const bits = parseInt(format.slice(1), 10);
-        if (!isNaN(bits)) {
-            options.bitsPerSample = bits;
-        }
-    }
-    for (const param of params) {
-        const [key, value] = param.split('=').map(s => s.trim());
-        if (key === 'rate') {
-            options.sampleRate = parseInt(value, 10);
-        }
-    }
-    return options;
-}
-function createWavHeader(dataLength, options) {
-    const { numChannels = 1, sampleRate = 44100, bitsPerSample = 16, } = options;
-    const byteRate = sampleRate * numChannels * bitsPerSample / 8;
-    const blockAlign = numChannels * bitsPerSample / 8;
-    const buffer = new ArrayBuffer(44);
-    const view = new DataView(buffer);
-    view.setUint32(0, 0x52494646, false); // RIFF
-    view.setUint32(4, 36 + dataLength, true); // ChunkSize
-    view.setUint32(8, 0x57415645, false); // WAVE
-    view.setUint32(12, 0x666d7420, false); // fmt
-    view.setUint32(16, 16, true); // Subchunk1Size
-    view.setUint16(20, 1, true); // AudioFormat
-    view.setUint16(22, numChannels, true); // NumChannels
-    view.setUint32(24, sampleRate, true); // SampleRate
-    view.setUint32(28, byteRate, true); // ByteRate
-    view.setUint16(32, blockAlign, true); // BlockAlign
-    view.setUint16(34, bitsPerSample, true); // BitsPerSample
-    view.setUint32(36, 0x64617461, false); // data
-    view.setUint32(40, dataLength, true); // Subchunk2Size
-    return new Uint8Array(buffer);
-}
-function PCM2WAV(buffer, sampleRate, numChannels) {
-    const bufferLength = buffer.length;
-    const headerLength = 44;
-    const view = new DataView(new ArrayBuffer(bufferLength * numChannels * 2 + headerLength));
-    view.setUint32(0, 0x46464952, true); // "RIFF"
-    view.setUint32(4, view.buffer.byteLength - 8, true); // RIFF size
-    view.setUint32(8, 0x45564157, true); // "WAVE"
-    view.setUint32(12, 0x20746d66, true); // Subchunk1ID ("fmt ")
-    view.setUint32(16, 0x10, true); // Subchunk1Size
-    view.setUint16(20, 0x0001, true); // AudioFormat
-    view.setUint16(22, numChannels, true); // NumChannels
-    view.setUint32(24, sampleRate, true); // SampleRate
-    view.setUint32(28, numChannels * 2 * sampleRate, true); // ByteRate
-    view.setUint16(32, numChannels * 2, true); // BlockAlign
-    view.setUint16(34, 16, true); // BitsPerSample
-    view.setUint32(36, 0x61746164, true); // Subchunk2ID ("data")
-    view.setUint32(40, 2 * bufferLength, true); // Subchunk2Size
-    let p = headerLength;
-    for (let i = 0; i < bufferLength; i++) {
-        const v = buffer[i];
-        if (v >= 1)
-            view.setInt16(p, 0x7fff, true);
-        else if (v <= -1)
-            view.setInt16(p, -0x8000, true);
-        else
-            view.setInt16(p, (v * 0x8000) | 0, true);
-        p += 2;
-    }
-    return view.buffer;
-}
+Оба поля обязательны и не должны быть пустыми.`,temperature:.7,tools:[{googleSearch:{}}]},q={model:"gemini-2.5-flash-preview-tts",temperature:.7,voiceName:"Laomedeia"},yt={silero:{localhost:"http://localhost:8000/synthesize/",internet:"https://your-ngrok-silero-url.ngrok.io/synthesize/"},vosk:{localhost:"http://localhost:8080/synthesize/",internet:"https://celsa-noncelestial-unegregiously.ngrok-free.app/synthesize/"}};async function Et(e){try{const t=new AbortController,n=setTimeout(()=>t.abort(),2e3),o=await fetch(e,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:"test"}),signal:t.signal});return clearTimeout(n),o.ok}catch(t){return console.log(`Localhost service check failed for ${e}:`,t),!1}}function Ee(e){if(!e||!e.trim())return!1;const t=["rate limit","quota exceeded","model overload","server error","internal error","service unavailable","temporary failure","try again","too many requests","503","504"],n=e.toLowerCase();return t.some(o=>n.includes(o))}function St(e){if(!e)return!1;const t=["network","timeout","connection","rate limit","quota exceeded","server error","internal error","service unavailable","temporary failure","try again","too many requests","429","500","502","503","504","fetch"],n=e.toLowerCase();return t.some(o=>n.includes(o))}async function be(e,t){const n=yt[e];if(!n)throw new Error(`Unknown TTS service: ${e}`);if(console.log(`Trying localhost for ${e}: ${n.localhost}`),await Et(n.localhost)){console.log(`Using localhost for ${e}`);const r=await fetch(n.localhost,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:t})});if(r.ok)return r}console.log(`Localhost not available, trying internet for ${e}: ${n.internet}`);const s=await fetch(n.internet,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:t})});if(!s.ok)throw new Error(`Both localhost and internet endpoints failed for ${e}`);return s}async function Se(e,t={}){const{model:n="models/gemini-2.5-flash",systemPrompt:o,temperature:s=.7,useTools:r=!1,provider:i="google",useHistory:a=!0,onDelta:l}=t;if(i==="spark"){const d=[];if(o&&d.push({role:"system",content:o}),a)for(const m of R.slice(-10))(m.role==="user"||m.role==="assistant")&&d.push({role:m.role,content:m.content});d.push({role:"user",content:e});const f=await fetch(le()+"/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:n,temperature:s,messages:d,stream:!0})});if(!f.ok||!f.body){const m=await f.text().catch(()=>"");throw new Error(`Spark gateway error: ${f.status} ${m.slice(0,200)}`)}const h=f.body.getReader(),u=new TextDecoder;let p="",g="";for(;;){const{done:m,value:N}=await h.read();if(m)break;p+=u.decode(N,{stream:!0});let F;for(;(F=p.indexOf(`
+`))!==-1;){const de=p.slice(0,F).trim();if(p=p.slice(F+1),!de.startsWith("data:"))continue;const ue=de.slice(5).trim();if(ue!=="[DONE]")try{const B=JSON.parse(ue)?.choices?.[0]?.delta?.content;typeof B=="string"&&B&&(g+=B,l?.(g))}catch{}}}return{candidates:[{content:{parts:[{text:g}]}}]}}if(window.location.hostname==="localhost"||window.location.hostname==="127.0.0.1")if(console.log("🔧 Running in local development mode - using direct API calls"),i==="google"){const{GoogleGenerativeAI:d}=await Ge(async()=>{const{GoogleGenerativeAI:g}=await Promise.resolve().then(()=>pt);return{GoogleGenerativeAI:g}},void 0),f="AIzaSyA_at7oN4UUZe6LoZbiHzWeAEvdo2jTFVw",h=new d(f);if(a&&!L){const g=h.getGenerativeModel({model:n,systemInstruction:o,generationConfig:{temperature:s},tools:r?[{functionDeclarations:[{name:"googleSearch",description:"Search the web for information to answer questions",parameters:{type:C.OBJECT,properties:{query:{type:C.STRING,description:"The search query to find information"}},required:["query"]}}]}]:void 0}),m=R.slice(0,-1);L=g.startChat({history:m.slice(-10).map(N=>({role:N.role==="assistant"?"model":N.role,parts:[{text:N.content}]}))})}let u;return a&&L?u=await L.sendMessage(e):u=await h.getGenerativeModel({model:n,systemInstruction:o,generationConfig:{temperature:s},tools:r?[{functionDeclarations:[{name:"googleSearch",description:"Search the web for information to answer questions",parameters:{type:C.OBJECT,properties:{query:{type:C.STRING,description:"The search query to find information"}},required:["query"]}}]}]:void 0}).generateContent(e),{candidates:[{content:{parts:[{text:u.response.text()}],role:"model"},finishReason:"STOP",index:0}]}}else if(i==="openrouter"){const d="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",f=[];if(o&&f.push({role:"system",content:o}),a){const g=R.slice(-10).filter(m=>m.role!=="system");f.push(...g)}console.log("OpenRouter messages:",f);const h=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",headers:{Authorization:`Bearer ${d}`,"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({model:n,messages:f,temperature:s})});if(!h.ok){const g=await h.json(),m=g.error?.message||JSON.stringify(g.error);throw new Error(`OpenRouter API Error: ${m}`)}const u=await h.json();if(!u.choices||!u.choices[0]||!u.choices[0].message)throw new Error("Unexpected response format from OpenRouter");return{candidates:[{content:{parts:[{text:u.choices[0].message.content||"No response content"}],role:"model"},finishReason:"STOP",index:0}]}}else throw new Error(`Unsupported provider: ${i}`);else{console.log(`🌐 Running in production mode - using ${i} Netlify function`);let d="gemini";i==="openrouter"&&(d="openrouter");const f=await fetch(`/.netlify/functions/${d}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:e,model:n,systemPrompt:o,temperature:s,useTools:i==="google"?r:!1,useHistory:a,chatHistory:a?R.slice(-10):[]})});if(!f.ok){const u=await f.json();throw new Error(`API Error: ${u.error||f.statusText}`)}return await f.json()}}const ce={"gemini-default":{model:"models/gemini-2.5-flash",name:"Gemini 2.5 Flash",provider:"google"},"gemini-lite":{model:"models/gemini-2.5-flash-lite",name:"Gemini 2.5 Flash Lite",provider:"google"},"gemini-pro":{model:"models/gemini-2.5-pro",name:"Gemini 2.5 Pro",provider:"google"},"GPT-OSS":{model:"openai/gpt-oss-20b:free",name:"GPT-OSS",provider:"openrouter"},Longcat:{model:"meituan/longcat-flash-chat:free",name:"LongCat",provider:"openrouter"},"spark-glm":{model:"glm",name:"GLM 5.3 Flash (Spark)",provider:"spark"}};let _=ce["spark-glm"],R=[],L=null;const T=document.getElementById("chat"),ne=document.getElementById("input"),Ae=document.getElementById("send"),ve=document.getElementById("llm-model"),Ne=document.getElementById("tts-service"),Te=document.getElementById("progress-container"),H=document.getElementById("download-progress"),x=document.getElementById("progress-text");let oe=!1,Le=null,b=null;Ae.addEventListener("click",async()=>{const e=ne.value.trim();if(!e)return;Tt(),R.push({role:"user",content:e}),k("user",e),ne.value="";const t=async(n,o=0)=>{let r=null;try{const i=_.provider==="spark",a=i?Ct():null;i&&(r=document.createElement("div"),r.className="message bot",r.innerHTML="<span>…</span>",T.appendChild(r),T.scrollTop=T.scrollHeight);const l=await Se(n,{model:_.model,systemPrompt:M.systemPrompt,temperature:M.temperature,useTools:_.provider==="google",provider:_.provider,onDelta:a?u=>{a.feed(u);const p=a.render();if(p&&r){const g=r.querySelector("span");g&&(g.textContent+=p),a.markRendered(p.length),T.scrollTop=T.scrollHeight}}:void 0});let c="";if(l.candidates&&l.candidates[0]&&l.candidates[0].content){const u=l.candidates[0].content;u.parts&&u.parts[0]&&u.parts[0].text&&(c=u.parts[0].text)}if(l.candidates&&l.candidates[0]&&l.candidates[0].content&&l.candidates[0].content.parts&&l.candidates[0].content.parts[0]&&l.candidates[0].content.parts[0].functionCall){console.log("Model wants to use search!");const u=l.candidates[0].content.parts[0].functionCall;if(u.name==="googleSearch"&&u.args&&u.args.query){const p=await kt(u.args.query),g=await Se(`Based on this search result, please answer the user's question: "${n}"
+
+Search Results:
+${p}`,{model:_.model,systemPrompt:M.systemPrompt,temperature:M.temperature,useTools:!1});g.candidates&&g.candidates[0]&&g.candidates[0].content&&g.candidates[0].content.parts&&g.candidates[0].content.parts[0]&&(c=g.candidates[0].content.parts[0].text||"")}}const d=c;let f=c;const h=Ot(c);if(h&&(f=h.speak,c=h.show),a){const u=a.flush();u.trim()&&ke(u);const p=a.result();if(p&&(f=p.speak,c=p.show),r){const g=r.querySelector("span");if(g&&(g.textContent=c),c&&c.trim()&&!Ee(c)){const m=document.createElement("button");m.textContent="Replay",m.addEventListener("click",()=>se(f)),r.appendChild(m)}}}if(c&&c.trim()&&!Ee(c))R.push({role:"assistant",content:d}),a||k("bot",c,!1,f);else if(c&&c.trim()){if(console.warn("Model returned error message, retrying:",c),o<3)return r?.remove(),r=null,console.log(`Retrying message (attempt ${o+1}/3)`),await new Promise(u=>setTimeout(u,1e3)),t(n,o+1)}else if((!c||!c.trim())&&(console.warn("Model returned empty message, retrying"),o<3))return r?.remove(),r=null,console.log(`Retrying message (attempt ${o+1}/3)`),await new Promise(u=>setTimeout(u,1e3)),t(n,o+1)}catch(i){r?.remove(),r=null;const a=i.message;if(St(a)&&o<3)return console.warn(`Network/model error, retrying: ${a}`),console.log(`Retrying message (attempt ${o+1}/3)`),await new Promise(l=>setTimeout(l,2e3)),t(n,o+1);console.error("Final error after retries:",a),k("bot","Извините, произошла ошибка при обработке сообщения. Попробуйте еще раз.")}};await t(e)});ne.addEventListener("keydown",e=>{e.key==="Enter"&&Ae.click()});ve.addEventListener("change",async()=>{const e=ve.value;e in ce&&await vt(e)});async function vt(e){try{const t=ce[e];if(!t)throw new Error(`Model configuration not found for: ${e}`);_=t,R=[],L=null,console.log(`Switched to model: ${t.name}`),k("bot",`Переключено на модель: ${t.name}`,!0)}catch(t){console.error("Error switching model:",t),k("bot","Ошибка при переключении модели: "+t.message)}}let w=null,E=!1;const j=[];let G=!1;function Tt(){E=!0,j.length=0,w&&(w.pause(),w.currentTime=0,w=null),G=!1}function ke(e){const t=e.trim();t&&De(t).then(({audioUrl:n,audio:o})=>{if(E){URL.revokeObjectURL(n);return}j.push({text:t,audioUrl:n,audio:o}),$e()}).catch(n=>console.warn("TTS queue: синтез не удался:",n))}function $e(){if(G||E)return;const e=j.shift();if(!e){w=null;return}G=!0,w=e.audio;const t=()=>{URL.revokeObjectURL(e.audioUrl),G=!1,w=null,$e()};e.audio.onended=t,e.audio.onerror=t,e.audio.play().catch(t)}function Ot(e){if(!e)return null;const t=e.match(/```(?:json)?\s*([\s\S]*?)```/),n=t?t[1]:e,o=n.indexOf("{"),s=n.lastIndexOf("}");if(o===-1||s<=o)return null;try{const r=JSON.parse(n.slice(o,s+1));if(r&&typeof r.speak=="string"&&typeof r.show=="string"&&r.speak.trim()&&r.show.trim())return{speak:r.speak,show:r.show}}catch{}return null}function Ct(){let e=0,t=0,n="",o="";function s(r){const i=r.indexOf("{");if(i===-1)return null;const a=r.slice(i);for(const l of[a,a+'"',a+'"}'])try{const c=JSON.parse(l);if(c&&typeof c.speak=="string"&&typeof c.show=="string")return{speak:c.speak,show:c.show}}catch{}return null}return{feed(r){const i=s(r);if(!i)return;n=i.speak,o=i.show;const a=i.speak.slice(e),l=/[\s\S]*?[.!?…]+(?=\s)/g;let c="",d,f=0;for(;(d=l.exec(a))!==null;)c=d[0],f=l.lastIndex;c&&(e+=f,ke(c))},render(){return o.slice(t)},markRendered(r){t+=r},flush(){const r=n.slice(e);return e=n.length,r},result(){return n||o?{speak:n,show:o}:null}}}function k(e,t,n=!1,o){const s=document.createElement("div");if(s.className=`message ${e}`,s.innerHTML=`<span>${t}</span>`,e==="bot"&&!n){const r=document.createElement("button");r.textContent="Replay",r.addEventListener("click",()=>{se(o||t)}),s.appendChild(r),se(o||t)}T.appendChild(s),T.scrollTop=T.scrollHeight}async function se(e){const t=Ne.value;E=!1;try{if(t==="gemini")await Oe(e);else if(t==="google-cloud")try{await It(e)}catch(n){console.warn("Google Cloud TTS failed, falling back to Gemini TTS:",n),await Oe(e)}else if(t==="piper")await Lt(e);else if(t==="silero")await $t(e);else if(t==="vosk")await Dt(e);else if(t==="spark"){j.length=0;const{audioUrl:n,audio:o}=await De(e);w=o,o.onended=()=>{URL.revokeObjectURL(n),w===o&&(w=null)},o.play().catch(()=>{})}}catch(n){console.error("Speech synthesis error:",n);const o=new SpeechSynthesisUtterance(e);window.speechSynthesis.speak(o)}}const Rt="https://dig-investment-satisfy-pencil.trycloudflare.com";function le(){return location.protocol==="https:"?Rt:"http://192.168.1.201:8000"}Ne.value==="spark"&&fetch(le()+"/admin/load",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({engine:"qwen"})}).then(e=>e.json()).then(e=>console.log("TTS warmup:",e)).catch(()=>{});async function De(e){const t=i=>fetch(le()+"/v1/audio/speech",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"tts",input:e,voice:"default",engine:i,response_format:"mp3"})});let n=await t("qwen");if(n.ok||(console.warn("Spark TTS: qwen недоступна (",n.status,"), пробую auto"),n=await t("auto")),!n.ok)throw new Error(`Spark TTS error: ${n.status}`);const o=await n.blob(),s=URL.createObjectURL(o),r=new Audio(s);return{audioUrl:s,audio:r}}async function Oe(e){try{if(window.location.hostname==="localhost"||window.location.hostname==="127.0.0.1"){console.log("🔧 Running Gemini TTS in local development mode");const n="AIzaSyA_at7oN4UUZe6LoZbiHzWeAEvdo2jTFVw",o={input:{text:e},voice:{languageCode:"en-US",name:q.voiceName},audioConfig:{audioEncoding:"MP3",speakingRate:1,pitch:0}},s=await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${n}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(o)});if(!s.ok){const d=await s.json();throw console.error("Gemini TTS API error:",d),new Error(`TTS API Error: ${s.statusText}`)}const r=await s.json();if(!r.audioContent)throw new Error("No audio content received from Gemini TTS");const i=Uint8Array.from(atob(r.audioContent),d=>d.charCodeAt(0)),a=new Blob([i],{type:"audio/mpeg"}),l=URL.createObjectURL(a),c=new Audio(l);c.play(),c.onended=()=>URL.revokeObjectURL(l)}else{console.log("🌐 Running Gemini TTS via Netlify function");const n=new AbortController,o=setTimeout(()=>n.abort(),7e4);try{const s=await fetch("/.netlify/functions/gemini-tts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:e,voiceName:q.voiceName,temperature:q.temperature}),signal:n.signal});if(clearTimeout(o),!s.ok){const l=await s.json();throw console.error("Gemini TTS Netlify function error:",l),new Error(`TTS API Error: ${s.statusText}`)}const r=await s.blob(),i=URL.createObjectURL(r),a=new Audio(i);a.play(),a.onended=()=>URL.revokeObjectURL(i)}catch(s){throw clearTimeout(o),s instanceof Error&&s.name==="AbortError"?(console.error("Gemini TTS request timed out after 70 seconds"),new Error("TTS request timed out. The service may be busy.")):s}}}catch(t){console.error("Gemini TTS error:",t);const n=new SpeechSynthesisUtterance(e);window.speechSynthesis.speak(n)}}async function It(e){try{console.log("Google Cloud TTS not implemented yet, using browser TTS");const t=new SpeechSynthesisUtterance(e);window.speechSynthesis.speak(t)}catch(t){console.error("Google Cloud TTS error:",t);const n=new SpeechSynthesisUtterance(e);window.speechSynthesis.speak(n)}}async function _t(e,t){const n=new AbortController,o=setTimeout(()=>n.abort(),6e4);try{const s=await fetch(e,{signal:n.signal}),r=s.headers.get("content-length"),i=r?parseInt(r):0,a=s.body.getReader(),l=[];let c=0;for(;;){const{done:f,value:h}=await a.read();if(f)break;l.push(h),c+=h.length,t(c,i)}return new Blob(l).arrayBuffer()}finally{clearTimeout(o)}}async function bt(){return new Promise((e,t)=>{let n=0;function o(){const s=window.createPiperPhonemize;s&&typeof s=="function"?e(s):++n>50?t(new Error("Piper phonemization module not loaded correctly")):setTimeout(o,100)}o()})}async function At(e){const t=await bt();return new Promise((n,o)=>{t({print:r=>{try{n(JSON.parse(r).phoneme_ids)}catch{o(new Error("Failed to parse phonemizer output"))}},printErr:r=>{console.error("Phonemizer error:",r),o(new Error(r))},locateFile:r=>r.endsWith(".wasm")?"https://huggingface.co/rhasspy/piper-voices/raw/main/piper_phonemize.wasm":r.endsWith(".data")?"https://huggingface.co/rhasspy/piper-voices/raw/main/piper_phonemize.data":r}).callMain(["-l","ru_RU","--input",JSON.stringify([{text:e}]),"--espeak_data","/espeak-ng-data"])})}async function Nt(){if(oe)return;console.log("Starting Piper model loading..."),Te.style.display="block",x.textContent="Downloading model...",console.log("Downloading Piper model...");const e="https://huggingface.co/wide-video/piper-voices-v1.0.1/resolve/main/ru/ru_RU/irina/medium/ru_RU-irina-medium.onnx",t="https://huggingface.co/wide-video/piper-voices-v1.0.1/resolve/main/ru/ru_RU/irina/medium/ru_RU-irina-medium.onnx.json";Le=await _t(e,(l,c)=>{const d=c?l/c*50:0;H.value=d}),console.log("Piper model downloaded successfully."),x.textContent="Downloading config...",console.log("Downloading Piper config..."),b=await(await fetch(t)).json(),H.value=60,console.log("Piper config downloaded successfully."),x.textContent="Loading...",console.log("Waiting for dependencies to load...");const o=Date.now();console.log(`[${new Date().toISOString()}] Starting dependency check...`),console.log(`[${new Date().toISOString()}] Initial piper availability:`,typeof window.piper),console.log(`[${new Date().toISOString()}] Initial ort availability:`,typeof window.ort);let s=0,r=!1,i=!1;for(;(!window.piper||!window.ort)&&s<300;){await new Promise(d=>setTimeout(d,100)),s++;const l=!!window.piper,c=!!window.ort;if(l&&!r&&(r=!0,console.log(`[${new Date().toISOString()}] Piper dependency loaded after ${s*100}ms`)),c&&!i&&(i=!0,console.log(`[${new Date().toISOString()}] ONNX Runtime (ort) dependency loaded after ${s*100}ms`)),s%50===0){const d=Date.now()-o;console.log(`[${new Date().toISOString()}] Still waiting... (${d}ms elapsed, ${s}/300 attempts)`),console.log(`[${new Date().toISOString()}] Current piper status:`,l?"READY":"NOT READY"),console.log(`[${new Date().toISOString()}] Current ort status:`,c?"READY":"NOT READY")}}const a=Date.now()-o;if(s>=300){console.error(`[${new Date().toISOString()}] DEPENDENCY LOAD FAILURE - Timeout after ${a}ms`),console.error(`[${new Date().toISOString()}] Final piper status:`,r?"LOADED":"FAILED TO LOAD"),console.error(`[${new Date().toISOString()}] Final ort status:`,i?"LOADED":"FAILED TO LOAD"),console.error(`[${new Date().toISOString()}] Network status:`,navigator.onLine?"ONLINE":"OFFLINE");const l=document.querySelectorAll("script");throw console.log(`[${new Date().toISOString()}] Checking script loading status...`),l.forEach((c,d)=>{if(c.src.includes("piper")||c.src.includes("ort")){const f=c.readyState||"unknown";console.log(`[${new Date().toISOString()}] Script ${d}: ${c.src} - readyState: ${f}`)}}),new Error(`Dependencies failed to load within timeout (${a}ms). Piper: ${r?"OK":"FAILED"}, ONNX: ${i?"OK":"FAILED"}`)}console.log(`[${new Date().toISOString()}] SUCCESS - All dependencies loaded in ${a}ms`),console.log(`[${new Date().toISOString()}] Piper ready: ${r}, ONNX Runtime ready: ${i}`),console.log("Dependencies loaded."),typeof window.ort<"u"&&(window.ort.env.wasm.numThreads=navigator.hardwareConcurrency,window.ort.env.wasm.wasmPaths="https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.17.1/"),H.value=100,x.textContent="Ready",setTimeout(()=>Te.style.display="none",1e3),oe=!0,console.log("Piper loading complete.")}async function Lt(e){oe||await Nt(),console.log("Generating phonemes...");const t=await At(e);console.log("Phonemes generated.");const n=b.audio.sample_rate,o=1,s=b.inference.noise_scale,r=b.inference.length_scale,i=b.inference.noise_w;console.log("Creating ONNX session...");const a=await window.ort.InferenceSession.create(URL.createObjectURL(new Blob([Le]))),l={input:new window.ort.Tensor("int64",t,[1,t.length]),input_lengths:new window.ort.Tensor("int64",[t.length]),scales:new window.ort.Tensor("float32",[s,r,i])};Object.keys(b.speaker_id_map).length&&(l.sid=new window.ort.Tensor("int64",[0])),console.log("Running inference...");const{output:{data:c}}=await a.run(l);console.log("Inference complete.");const d=Ut(c,n,o),f=new Blob([d],{type:"audio/x-wav"});new Audio(URL.createObjectURL(f)).play()}async function kt(e){if(window.location.hostname==="localhost"||window.location.hostname==="127.0.0.1"){console.log("🔧 Running Google Search in local development mode");const n="AIzaSyA_at7oN4UUZe6LoZbiHzWeAEvdo2jTFVw",o="b5df8993e2ba640ef";try{const s=`https://www.googleapis.com/customsearch/v1?key=${n}&cx=${o}&q=${encodeURIComponent(e)}&num=3`,r=await fetch(s);if(r.ok){const i=await r.json();return i.items&&i.items.length>0?i.items.slice(0,3).map(l=>`${l.title}
+${l.snippet}`).join(`
+
+`):"No results found."}else return console.error("Google Search API error:",r.status),`Search failed with status ${r.status}. Query: "${e}"`}catch(s){return console.error("Google Search error:",s),`Search error: ${s.message}. Query: "${e}"`}}else{console.log("🌐 Running Google Search via Netlify function");try{const n=await fetch("/.netlify/functions/performgooglesearch",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({query:e})});if(!n.ok){const s=await n.json();throw new Error(`Search API Error: ${s.error||n.statusText}`)}return(await n.json()).results||"No search results available."}catch(n){return console.error("Netlify Google Search function error:",n),`Search failed: ${n.message}. Query: "${e}"`}}}function Ue(e){return e.split(new RegExp("(?<=[.!?])\\s+")).filter(n=>n.trim().length>0)}async function $t(e){try{if(console.log("Processing text with Silero:",e),E){console.log("TTS was cancelled, skipping Silero processing");return}const t=Ue(e);if(t.length===0){console.warn("No valid sentences found in text");return}console.log(`Processing ${t.length} sentence(s)...`);const n=[];let o=!1,s=0,r=0,i=!1;const a=async()=>{if(E){console.log("TTS cancelled, stopping playback");return}if(o||s>=n.length)return;o=!0;const c=n[s],d=URL.createObjectURL(c),f=new Audio(d);w=f,console.log(`Playing audio segment ${s+1}/${t.length}`),f.onended=()=>{console.log(`Finished playing audio segment ${s+1}`),URL.revokeObjectURL(d),w=null,s++,o=!1,a()},f.onerror=h=>{console.error(`Error playing audio segment ${s+1}`,h),URL.revokeObjectURL(d),w=null,s++,o=!1,a()};try{await f.play()}catch(h){console.error(`audio.play() failed for segment ${s+1}`,h),w=null,o=!1,s++,a()}},l=async()=>{if(E){console.log("TTS cancelled, stopping request processing");return}if(r>=t.length){i=!0;return}const c=r;r++;try{console.log(`Starting synthesis for sentence ${c+1}: "${t[c].trim()}"`);const d=await be("silero",t[c].trim());if(d.ok){const f=await d.blob();console.log(`Synthesis completed for sentence ${c+1}, adding to queue`),n.push(f),!o&&!E&&a()}else{const f=await d.json();console.error(`Failed to synthesize sentence ${c+1}:`,f.detail)}}catch(d){console.error(`Error synthesizing sentence ${c+1}:`,d)}finally{E||l()}};l(),await new Promise(c=>{const d=()=>{if(E){console.log("TTS cancelled, resolving early"),c();return}i&&s>=t.length&&!o?(console.log("All audio segments processed and played successfully"),c()):setTimeout(d,100)};d()})}catch(t){throw console.error("Error in Silero TTS processing:",t),t}}async function Dt(e){try{if(console.log("Processing text with Vosk:",e),E){console.log("TTS was cancelled, skipping Vosk processing");return}const t=Ue(e);if(t.length===0){console.warn("No valid sentences found in text");return}console.log(`Processing ${t.length} sentence(s)...`);const n=[];let o=!1,s=0,r=0,i=!1;const a=async()=>{if(E){console.log("TTS cancelled, stopping playback");return}if(o||s>=n.length)return;o=!0;const c=n[s],d=URL.createObjectURL(c),f=new Audio(d);w=f,console.log(`Playing audio segment ${s+1}/${t.length}`),f.onended=()=>{console.log(`Finished playing audio segment ${s+1}`),URL.revokeObjectURL(d),w=null,s++,o=!1,a()},f.onerror=h=>{console.error(`Error playing audio segment ${s+1}`,h),URL.revokeObjectURL(d),w=null,s++,o=!1,a()};try{await f.play()}catch(h){console.error(`audio.play() failed for segment ${s+1}`,h),w=null,o=!1,s++,a()}},l=async()=>{if(E){console.log("TTS cancelled, stopping request processing");return}if(r>=t.length){i=!0;return}const c=r;r++;try{console.log(`Starting synthesis for sentence ${c+1}: "${t[c].trim()}"`);const d=await be("vosk",t[c].trim());if(d.ok){const f=await d.blob();console.log(`Synthesis completed for sentence ${c+1}, adding to queue`),n.push(f),!o&&!E&&a()}else{const f=await d.json();console.error(`Failed to synthesize sentence ${c+1}:`,f.detail)}}catch(d){console.error(`Error synthesizing sentence ${c+1}:`,d)}finally{E||l()}};l(),await new Promise(c=>{const d=()=>{if(E){console.log("TTS cancelled, resolving early"),c();return}i&&s>=t.length&&!o?(console.log("All audio segments processed and played successfully"),c()):setTimeout(d,100)};d()})}catch(t){throw console.error("Error in Vosk TTS processing:",t),t}}function Ut(e,t,n){const o=e.length,s=44,r=new DataView(new ArrayBuffer(o*n*2+s));r.setUint32(0,1179011410,!0),r.setUint32(4,r.buffer.byteLength-8,!0),r.setUint32(8,1163280727,!0),r.setUint32(12,544501094,!0),r.setUint32(16,16,!0),r.setUint16(20,1,!0),r.setUint16(22,n,!0),r.setUint32(24,t,!0),r.setUint32(28,n*2*t,!0),r.setUint16(32,n*2,!0),r.setUint16(34,16,!0),r.setUint32(36,1635017060,!0),r.setUint32(40,2*o,!0);let i=s;for(let a=0;a<o;a++){const l=e[a];l>=1?r.setInt16(i,32767,!0):l<=-1?r.setInt16(i,-32768,!0):r.setInt16(i,l*32768|0,!0),i+=2}return r.buffer}
