@@ -787,16 +787,24 @@ function gatewayBase(): string {
 }
 
 async function speakWithSpark(text: string) {
-    const response = await fetch(gatewayBase() + '/v1/audio/speech', {
+    // Клон голоса живёт в qwen: auto-режим отдаёт silero, пока qwen холодная.
+    // Просим qwen явно (первый запрос после простоя грузит её ~30 с), откат — auto.
+    const call = (engine: string) => fetch(gatewayBase() + '/v1/audio/speech', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             model: 'tts',
             input: text,
             voice: 'default',
+            engine: engine,
             response_format: 'mp3'
         })
     });
+    let response = await call('qwen');
+    if (!response.ok) {
+        console.warn('Spark TTS: qwen недоступна (', response.status, '), пробую auto');
+        response = await call('auto');
+    }
     if (!response.ok) {
         throw new Error(`Spark TTS error: ${response.status}`);
     }
