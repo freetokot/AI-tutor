@@ -534,9 +534,10 @@ let mediaRecorder: MediaRecorder | null = null;
 let audioChunks: Blob[] = [];
 let isRecording = false;
 let discardFlag = false;      // свайп-отмена: запись выбрасывается
-let releasePending = false;   // отпустили раньше, чем поднялся микрофон
 let recStartX = 0;
 let cancelPending = false;
+let pressSeq = 0;             // токен нажатия: устаревшие getUserMedia выбрасываются
+const pressInfo = new Map<number, { released: boolean; cancelled: boolean; startTs: number }>();
 let eqRaf = 0;
 let audioCtx: AudioContext | null = null;
 
@@ -597,14 +598,31 @@ function stopEqualizer(): void {
     input.style.display = '';
 }
 
-async function startRecording(): Promise<void> {
+async function startRecording(mySeq: number): Promise<void> {
+    // «…» пока поднимается микрофон — на телефоне это может занять пару секунд
+    const connectTimer = window.setTimeout(() => {
+        const pi = pressInfo.get(mySeq);
+        if (pi && !pi.released && !pi.cancelled && !isRecording) sendBtn.innerHTML = '…';
+    }, 1000);
+    const dead = () => {
+        clearTimeout(connectTimer);
+        const pi = pressInfo.get(mySeq);
+        if (mySeq !== pressSeq) pressInfo.delete(mySeq);
+        return pi;
+    };
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        if (releasePending) { // отпустили раньше, чем поднялся микрофон
-            releasePending = false;
+        const pi = dead();
+        // нажатие уже закончилось (отпустили / система отменила жест), пока поднимался микрофон
+        if (mySeq !== pressSeq || !pi || pi.cancelled) {
             stream.getTracks().forEach(t => t.stop());
+            updateSendBtn();
+            if (pi?.released && !pi.cancelled && Date.now() - pi.startTs > 500) {
+                addMessage('bot', 'Микрофон не успел включиться — зажми кнопку и говори сразу.', true);
+            }
             return;
         }
+        clearTimeout(connectTimer);
         const mime = pickRecorderMime();
         mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime })
                              : new MediaRecorder(stream);
@@ -631,7 +649,8 @@ async function startRecording(): Promise<void> {
         sendBtn.innerHTML = ICON_MIC;
         startEqualizer(stream);
     } catch (err) {
-        releasePending = false;
+        dead();
+        updateSendBtn();
         console.error('микрофон недоступен', err);
         addMessage('bot', 'Нет доступа к микрофону.', true);
     }
@@ -675,12 +694,17 @@ async function transcribeAndSend(blob: Blob): Promise<void> {
 sendBtn.addEventListener('pointerdown', (e) => {
     if (input.value.trim()) return; // текстовый режим — обычный клик-отправка
     if (isRecording) return;
-    releasePending = false;
+    const seq = ++pressSeq;
+    pressInfo.set(seq, { released: false, cancelled: false, startTs: Date.now() });
+    if (pressInfo.size > 3) {
+        const oldest = pressInfo.keys().next().value;
+        if (oldest !== undefined && oldest !== seq) pressInfo.delete(oldest);
+    }
     cancelPending = false;
     recStartX = e.clientX;
     e.preventDefault();
     try { sendBtn.setPointerCapture(e.pointerId); } catch { /* noop */ }
-    void startRecording();
+    void startRecording(seq);
 });
 
 sendBtn.addEventListener('pointermove', (e) => {
@@ -701,13 +725,24 @@ const finishPress = () => {
 };
 sendBtn.addEventListener('pointerup', () => {
     if (isRecording) finishPress();
-    else releasePending = true; // микрофон ещё поднимается
+    else {
+        const pi = pressInfo.get(pressSeq); // микрофон ещё поднимается
+        if (pi) pi.released = true;
+    }
 });
 sendBtn.addEventListener('pointercancel', () => {
     if (isRecording) finishPress();
-    else releasePending = false;
+    else {
+        const pi = pressInfo.get(pressSeq); // систему забрал жест — нажатие умерло
+        if (pi) pi.cancelled = true;
+    }
 });
-sendBtn.addEventListener('contextmenu', (e) => { if (isRecording) e.preventDefault(); });
+sendBtn.addEventListener('lostpointercapture', () => {
+    if (isRecording) return; // pointerup уже отработал
+    const pi = pressInfo.get(pressSeq);
+    if (pi && !pi.released) pi.cancelled = true; // захват потерян без pointerup
+});
+sendBtn.addEventListener('contextmenu', (e) => e.preventDefault()); // long-press Android убивал запись
 input.addEventListener('input', updateSendBtn);
 updateSendBtn();
 
