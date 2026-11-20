@@ -45,6 +45,7 @@ const LLM_CONFIG = {
 7. Формат ответа — ВСЕГДА строго JSON, без markdown-обёртки и без текста вне JSON:
 {"speak": "...", "show": "..."}
 Поле "speak" — только то, что произносится вслух: все числа, формулы и обозначения словами («пять умножить на три», «икс равно пять»), без markdown, LaTeX, эмодзи и записей вида 2(x+3). Тёплым, живым, поддерживающим тоном.
+Поле "speak" повторяет "show" дословно и отличается ТОЛЬКО записью чисел и формул словами — не пересказывай, не сокращай и не добавляй ничего нового.
 Поле "show" — текст для чтения с экрана: может содержать формулы (2(x + 3) + 4x), записи вида x = 5 и markdown.
 Оба поля обязательны и не должны быть пустыми.`,
     temperature: 0.7,
@@ -1200,13 +1201,16 @@ function makeStreamSplitter() {
             // Завершённые предложения: терминатор, за которым пробел (не конец частичного
             // текста — иначе можно отрезать "3." от "3.14"). Хвост уйдёт в TTS при финализации.
             const re = /[\s\S]*?[.!?…]+(?=\s)/g;
-            let done = '';
+            const parts: string[] = [];
             let m: RegExpExecArray | null;
             let lastEnd = 0;
-            while ((m = re.exec(pending)) !== null) { done = m[0]; lastEnd = re.lastIndex; }
-            if (done) {
+            // В одном SSE-чанке может прийти несколько завершённых предложений —
+            // enqueue ВСЕ (иначе теряются все, кроме последнего: «на озвучку
+            // уходит не все»).
+            while ((m = re.exec(pending)) !== null) { parts.push(m[0]); lastEnd = re.lastIndex; }
+            if (parts.length) {
                 spokenLen += lastEnd;
-                enqueueSparkTTS(done);
+                enqueueSparkTTS(parts.join(''));
             }
         },
         // Новая часть show для рендера
@@ -1308,6 +1312,20 @@ if (ttsSelect.value === 'spark') {
 navigator.mediaDevices?.getUserMedia({ audio: true })
     .then(s => { s.getTracks().forEach(t => t.stop()); console.log('mic warm: ok'); })
     .catch(() => console.log('mic warm: нет доступа (спросим при нажатии)'));
+
+// App-shell: подгоняем каркас под визуальный вьюпорт. Клавиатура не перекрывает
+// поле ввода, даже если interactive-widget не поддержан; при pan браузера каркас
+// едет вместе с видимой областью, а не остаётся под клавиатурой.
+const vv = window.visualViewport;
+if (vv) {
+    const applyVV = () => {
+        document.body.style.height = vv.height + 'px';
+        document.body.style.top = vv.offsetTop + 'px';
+    };
+    vv.addEventListener('resize', applyVV);
+    vv.addEventListener('scroll', applyVV);
+    applyVV();
+}
 
 async function speakWithSpark(text: string) {
     // Клон голоса живёт в qwen: auto-режим отдаёт silero, пока qwen холодная.

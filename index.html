@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
     <title>AI Teacher VIKI</title>
     <style>
         /* --- General Styling & Variables --- */
@@ -19,6 +19,11 @@
             --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         }
 
+        html, body {
+            overscroll-behavior: none; /* без pull-to-refresh и прокидывания скролла */
+            touch-action: manipulation; /* без double-tap zoom */
+        }
+
         body {
             font-family: var(--font-family);
             margin: 0;
@@ -28,6 +33,10 @@
             height: 100dvh; /* планшет/телефон: высота без панели браузера и клавиатуры */
             background-color: var(--body-bg);
             overflow: hidden; /* Prevents body scroll when settings are open */
+            position: fixed; /* app-shell: Chrome не скроллит корень при фокусе ввода */
+            top: 0;
+            left: 0;
+            width: 100%;
         }
 
         /* --- Settings Panel --- */
@@ -116,6 +125,7 @@
             flex: 1;
             min-height: 0; /* иначе длинный чат выталкивает поле ввода за экран */
             overflow-y: auto;
+            overscroll-behavior: contain; /* чат скроллится сам, страницу не тянет */
             padding: 20px;
             display: flex;
             flex-direction: column;
@@ -328,7 +338,7 @@
     <!-- Main Chat Content -->
     <div id="main">
         <header id="main-header">
-            <h1>Вики - ИИ помощник <span id="appver">v20.2</span></h1>
+            <h1>Вики - ИИ помощник <span id="appver">v20.3</span></h1>
             <button id="settings-button">Настройки</button>
         </header>
         <div id="chat">
