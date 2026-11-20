@@ -1120,9 +1120,33 @@ function stopCurrentTTS() {
     ttsPlaying = false;
 }
 
+// Дробим длинный текст по запятым/пробелам: короткие запросы синтезируются
+// быстрее -> первый звук раньше, а конкуренция с GLM за GPU меньше бьёт по
+// максимальной задержке.
+function splitLongText(text: string, maxLen: number): string[] {
+    if (text.length <= maxLen) return [text];
+    const out: string[] = [];
+    let rest = text;
+    while (rest.length > maxLen) {
+        const window = rest.slice(0, maxLen);
+        let cut = Math.max(window.lastIndexOf(', '), window.lastIndexOf('; '), window.lastIndexOf(': '), window.lastIndexOf(' — '));
+        if (cut < 40) cut = window.lastIndexOf(' ');
+        if (cut < 40) cut = maxLen;
+        const piece = rest.slice(0, cut + 1).trim();
+        if (piece) out.push(piece);
+        rest = rest.slice(cut + 1);
+    }
+    if (rest.trim()) out.push(rest.trim());
+    return out.filter(s => s.length > 0);
+}
+
 function enqueueSparkTTS(text: string, streamId: number = ttsStreamId) {
     const trimmed = text.trim();
     if (!trimmed) return;
+    if (trimmed.length > 250) {
+        splitLongText(trimmed, 250).forEach(c => enqueueSparkTTS(c, streamId));
+        return;
+    }
     // Синтезируем сразу (параллельно с генерацией), в очередь — по завершении предыдущего
     speakWithSpark(trimmed).then(({ audioUrl, audio }) => {
         if (isTTSCancelled || streamId !== ttsStreamId) { URL.revokeObjectURL(audioUrl); return; }
@@ -1210,7 +1234,9 @@ function makeStreamSplitter() {
             while ((m = re.exec(pending)) !== null) { parts.push(m[0]); lastEnd = re.lastIndex; }
             if (parts.length) {
                 spokenLen += lastEnd;
-                enqueueSparkTTS(parts.join(''));
+                // Каждое предложение — отдельный запрос: аудио первого готово
+                // сразу, а не после синтеза всего чанка.
+                parts.forEach(p => enqueueSparkTTS(p));
             }
         },
         // Новая часть show для рендера
