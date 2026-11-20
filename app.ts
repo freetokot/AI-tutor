@@ -619,6 +619,9 @@ async function startRecording(mySeq: number): Promise<void> {
             updateSendBtn();
             if (pi?.released && !pi.cancelled && Date.now() - pi.startTs > 500) {
                 addMessage('bot', 'Микрофон не успел включиться — зажми кнопку и говори сразу.', true);
+            } else if (pi?.cancelled) {
+                // чаще всего это запрос доступа к микрофону, который прервал жест
+                addMessage('bot', 'Микрофон включён — нажми кнопку ещё раз.', true);
             }
             return;
         }
@@ -1298,6 +1301,13 @@ if (ttsSelect.value === 'spark') {
       .then((r: { ok?: boolean; loaded?: boolean }) => console.log('TTS warmup:', r))
       .catch(() => {});
 }
+
+// Прогрев микрофона при открытии: Chrome показывает запрос доступа ДО первого
+// нажатия. Иначе диалог доступа прерывает жест pointercancel-ом, и первое
+// нажатие умирает вхолостую (пользователь разрешает — а запись уже выброшена).
+navigator.mediaDevices?.getUserMedia({ audio: true })
+    .then(s => { s.getTracks().forEach(t => t.stop()); console.log('mic warm: ok'); })
+    .catch(() => console.log('mic warm: нет доступа (спросим при нажатии)'));
 
 async function speakWithSpark(text: string) {
     // Клон голоса живёт в qwen: auto-режим отдаёт silero, пока qwen холодная.
