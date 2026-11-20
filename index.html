@@ -85,6 +85,7 @@
         /* --- Main Chat Area --- */
         #main {
             flex: 1;
+            min-width: 0; /* иначе input-row своей min-шириной распирает #main за экран */
             display: flex;
             flex-direction: column;
             background-color: var(--chat-bg);
@@ -167,6 +168,7 @@
 
         #input {
             flex: 1;
+            min-width: 0; /* без этого input не сжимается ниже size=~20 символов */
             padding: 12px 15px;
             border: none;
             border-radius: 20px;
@@ -300,6 +302,27 @@
             #settings-header, #settings-button {
                 display: flex;
             }
+
+            /* телефон: плотнее отступы, иначе шапка и input-row не влезают в 360px */
+            #main-header {
+                padding: 8px 12px;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+
+            #main-header h1 {
+                font-size: 1.1em;
+            }
+
+            #settings-button {
+                padding: 6px 10px;
+                font-size: 0.9em;
+            }
+
+            .input-row {
+                padding: 10px 12px;
+                padding-bottom: max(10px, env(safe-area-inset-bottom));
+            }
         }
     </style>
 </head>
@@ -338,7 +361,7 @@
     <!-- Main Chat Content -->
     <div id="main">
         <header id="main-header">
-            <h1>Вики - ИИ помощник <span id="appver">v20.4</span></h1>
+            <h1>Вики - ИИ помощник <span id="appver">v20.5</span></h1>
             <button id="settings-button">Настройки</button>
         </header>
         <div id="chat">
