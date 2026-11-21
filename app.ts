@@ -698,6 +698,10 @@ async function transcribeAndSend(blob: Blob): Promise<void> {
 sendBtn.addEventListener('pointerdown', (e) => {
     if (input.value.trim()) return; // текстовый режим — обычный клик-отправка
     if (isRecording) return;
+    // Прерывание воспроизведения в момент нажатия: «стоп, теперь говорю я».
+    // Обе очереди и недоигранные фрагменты удаляются сразу, не дожидаясь
+    // ни отправки, ни окончания фразы.
+    stopCurrentTTS();
     const seq = ++pressSeq;
     pressInfo.set(seq, { released: false, cancelled: false, startTs: Date.now() });
     if (pressInfo.size > 3) {
@@ -1111,6 +1115,10 @@ const ttsSentenceQueue: TTSSentence[] = [];
 const ttsQueue: TTSQueueItem[] = [];
 let ttsPlaying = false;
 let ttsSynthBusy = false;
+// Фрагмент, звучащий прямо сейчас (или уже синтезированный и ожидающий
+// воспроизведения в Replay-пути) — нужен, чтобы при прерывании освободить
+// и его blob-URL тоже.
+let playingItem: TTSQueueItem | null = null;
 // Поколение очереди: stopCurrentTTS() и каждый новый стрим инкрементируют его,
 // просроченные результаты синтеза отбрасываются (иначе предложение старого
 // ответа может влезть в очередь нового).
@@ -1121,7 +1129,10 @@ let ttsStreamId = 0;
 function flushTTSQueues() {
     ttsStreamId++;
     ttsSentenceQueue.length = 0;
+    // недоигранные фрагменты удаляются вместе с их blob-URL
+    for (const it of ttsQueue) URL.revokeObjectURL(it.audioUrl);
     ttsQueue.length = 0;
+    if (playingItem) { URL.revokeObjectURL(playingItem.audioUrl); playingItem = null; }
     if (currentAudio) {
         currentAudio.pause();
         currentAudio.currentTime = 0;
@@ -1201,9 +1212,11 @@ function pumpTTSQueue() {
     const item = ttsQueue.shift();
     if (!item) { currentAudio = null; return; }
     ttsPlaying = true;
+    playingItem = item;
     currentAudio = item.audio;
     const done = () => {
         URL.revokeObjectURL(item.audioUrl);
+        playingItem = null;
         ttsPlaying = false;
         currentAudio = null;
         pumpTTSQueue();
@@ -1338,9 +1351,12 @@ async function speak(text: string) {
         } else if (service === 'spark') {
             // Ручной Replay вне очереди: глушим обе очереди и играем сразу
             flushTTSQueues();
+            const myGen = ttsStreamId; // нажатие микрофона во время синтеза инкрементирует поколение
             const { audioUrl, audio } = await speakWithSpark(text);
+            if (myGen !== ttsStreamId) { URL.revokeObjectURL(audioUrl); return; } // прервали, пока синтезировалось
+            playingItem = { text, audioUrl, audio };
             currentAudio = audio;
-            audio.onended = () => { URL.revokeObjectURL(audioUrl); if (currentAudio === audio) currentAudio = null; };
+            audio.onended = () => { URL.revokeObjectURL(audioUrl); playingItem = null; if (currentAudio === audio) currentAudio = null; };
             audio.play().catch(() => {});
         }
     } catch (error) {
