@@ -864,6 +864,25 @@ sendBtn.addEventListener('click', async () => {
                 if (streamed) {
                     speakMessage = streamed.speak;
                     botMessage = streamed.show;
+                } else if (rawBotMessage.trim()) {
+                    // Сплиттер так и не разобрал ответ (GLM нарушил формат {"speak","show"}
+                    // или SSE-дельты не приходили) — без этого блока ответ остаётся совсем
+                    // без озвучки: текст на экране есть, звука нет. Спасаем: speak из
+                    // parseDualOutput, затем регэксп, иначе весь текст как есть
+                    // (сырой JSON вслух не читаем).
+                    let salvage = dualOutput ? dualOutput.speak : '';
+                    if (!salvage.trim()) {
+                        const m = rawBotMessage.match(/"speak"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+                        if (m) {
+                            try { salvage = JSON.parse('"' + m[1] + '"') as string; } catch (_) { salvage = m[1]; }
+                        } else if (!rawBotMessage.trimStart().startsWith('{')) {
+                            salvage = rawBotMessage;
+                        }
+                    }
+                    if (salvage.trim()) {
+                        speakMessage = salvage;
+                        enqueueSparkTTS(salvage);
+                    }
                 }
                 if (streamDiv) {
                     const span = streamDiv.querySelector('span');
@@ -1191,7 +1210,7 @@ function pumpSynth() {
     const item = ttsSentenceQueue.shift();
     if (!item) return;
     ttsSynthBusy = true;
-    speakWithSpark(item.text).then(({ audioUrl, audio }) => {
+    speakWithSpark(item.text, currentSparkEngine()).then(({ audioUrl, audio }) => {
         ttsSynthBusy = false;
         if (isTTSCancelled || item.streamId !== ttsStreamId) {
             URL.revokeObjectURL(audioUrl);
@@ -1348,11 +1367,11 @@ async function speak(text: string) {
             await speakWithSilero(text);
         } else if (service === 'vosk') {
             await speakWithVosk(text);
-        } else if (service === 'spark') {
+        } else if (service === 'spark' || service === 'spark-qwen' || service === 'spark-silero') {
             // Ручной Replay вне очереди: глушим обе очереди и играем сразу
             flushTTSQueues();
             const myGen = ttsStreamId; // нажатие микрофона во время синтеза инкрементирует поколение
-            const { audioUrl, audio } = await speakWithSpark(text);
+            const { audioUrl, audio } = await speakWithSpark(text, currentSparkEngine());
             if (myGen !== ttsStreamId) { URL.revokeObjectURL(audioUrl); return; } // прервали, пока синтезировалось
             playingItem = { text, audioUrl, audio };
             currentAudio = audio;
@@ -1374,18 +1393,24 @@ function gatewayBase(): string {
     return location.protocol === 'https:' ? GATEWAY_HTTPS_URL : 'http://192.168.1.201:8000';
 }
 
-// Прогрев qwen-TTS при открытии страницы: модель грузится ~30 с, делаем это заранее,
-// пока пользователь печатает. Гейтвей проксирует /admin/load на TTS-сервер (:8102
-// браузеру недоступен — mixed content + CORS).
-if (ttsSelect.value === 'spark') {
+// Прогрев выбранного движка Spark-TTS при открытии страницы: qwen грузится ~30 с,
+// делаем это заранее, пока пользователь печатает. Гейтвей проксирует /admin/load
+// на TTS-сервер (:8102 браузеру недоступен — mixed content + CORS). При смене
+// пункта меню прогреваем новый движок, чтобы сравнение qwen/silero не ждало
+// холодную модель.
+function warmupSparkTTS() {
+    if (!ttsSelect.value.startsWith('spark')) return;
+    const engine = currentSparkEngine();
     fetch(gatewayBase() + '/admin/load', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ engine: 'qwen' })
+        body: JSON.stringify({ engine })
     }).then(r => r.json())
-      .then((r: { ok?: boolean; loaded?: boolean }) => console.log('TTS warmup:', r))
+      .then((r: { ok?: boolean; loaded?: boolean }) => console.log('TTS warmup:', engine, r))
       .catch(() => {});
 }
+warmupSparkTTS();
+ttsSelect.addEventListener('change', warmupSparkTTS);
 
 // Прогрев микрофона при открытии: Chrome показывает запрос доступа ДО первого
 // нажатия. Иначе диалог доступа прерывает жест pointercancel-ом, и первое
@@ -1408,22 +1433,31 @@ if (vv) {
     applyVV();
 }
 
-async function speakWithSpark(text: string) {
+// Выбранный в меню движок Spark-TTS: раздельные пункты «Qwen (Spark)» и
+// «Silero (Spark)» позволяют сравнить качество клонового qwen и запасного
+// silero на одном и том же тексте. Старое значение 'spark' = qwen (как было).
+function currentSparkEngine(): 'qwen' | 'silero' {
+    return ttsSelect.value === 'spark-silero' ? 'silero' : 'qwen';
+}
+
+async function speakWithSpark(text: string, engine: 'qwen' | 'silero' = 'qwen') {
     // Клон голоса живёт в qwen: auto-режим отдаёт silero, пока qwen холодная.
-    // Просим qwen явно (первый запрос после простоя грузит её ~30 с), откат — auto.
-    const call = (engine: string) => fetch(gatewayBase() + '/v1/audio/speech', {
+    // Просим выбранный движок явно (первый запрос после простоя грузит qwen ~30 с).
+    // Для qwen откат — auto; явный silero не откатываем на qwen, иначе сравнение
+    // качества нечестное.
+    const call = (eng: string) => fetch(gatewayBase() + '/v1/audio/speech', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             model: 'tts',
             input: text,
             voice: 'default',
-            engine: engine,
+            engine: eng,
             response_format: 'mp3'
         })
     });
-    let response = await call('qwen');
-    if (!response.ok) {
+    let response = await call(engine);
+    if (!response.ok && engine === 'qwen') {
         console.warn('Spark TTS: qwen недоступна (', response.status, '), пробую auto');
         response = await call('auto');
     }
