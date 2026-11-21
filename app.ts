@@ -1098,26 +1098,41 @@ async function createOpenRouterChat(modelConfig: any) {
 let currentAudio: HTMLAudioElement | null = null;
 let isTTSCancelled = false;
 
-// Очередь озвучки по предложениям: TTS запрашивается параллельно с генерацией LLM,
-// воспроизведение строго последовательное. stopCurrentTTS() опустошает очередь.
+// Две очереди, чтобы порядок воспроизведения всегда совпадал с порядком
+// предложений от LLM: (1) ttsSentenceQueue — строки на синтез (FIFO),
+// (2) ttsQueue — готовое аудио (FIFO). Синтез идёт строго последовательно,
+// один запрос за раз, с забеганием вперёд относительно воспроизведения:
+// пока звучит предложение N, N+1 уже синтезируется — первый звук так же
+// быстрый, но порядок гарантирован (раньше все запросы уходили параллельно
+// и ложились в очередь по порядку ЗАВЕРШЕНИЯ — отсюда перестановки).
+interface TTSSentence { text: string; streamId: number; }
 interface TTSQueueItem { text: string; audioUrl: string; audio: HTMLAudioElement; }
+const ttsSentenceQueue: TTSSentence[] = [];
 const ttsQueue: TTSQueueItem[] = [];
 let ttsPlaying = false;
+let ttsSynthBusy = false;
 // Поколение очереди: stopCurrentTTS() и каждый новый стрим инкрементируют его,
 // просроченные результаты синтеза отбрасываются (иначе предложение старого
 // ответа может влезть в очередь нового).
 let ttsStreamId = 0;
 
-function stopCurrentTTS() {
-    isTTSCancelled = true;
+// Сброс обеих очередей и поколения. Текущий запрос синтеза завершится, увидит
+// чужой streamId и выбросит результат; ttsSynthBusy сбросится в его .then/.catch.
+function flushTTSQueues() {
     ttsStreamId++;
-    ttsQueue.length = 0; // опустошить очередь — ничего дальше не прозвучит
+    ttsSentenceQueue.length = 0;
+    ttsQueue.length = 0;
     if (currentAudio) {
         currentAudio.pause();
         currentAudio.currentTime = 0;
         currentAudio = null;
     }
     ttsPlaying = false;
+}
+
+function stopCurrentTTS() {
+    isTTSCancelled = true;
+    flushTTSQueues();
 }
 
 // Дробим длинный текст по запятым/пробелам: короткие запросы синтезируются
@@ -1147,12 +1162,38 @@ function enqueueSparkTTS(text: string, streamId: number = ttsStreamId) {
         splitLongText(trimmed, 250).forEach(c => enqueueSparkTTS(c, streamId));
         return;
     }
-    // Синтезируем сразу (параллельно с генерацией), в очередь — по завершении предыдущего
-    speakWithSpark(trimmed).then(({ audioUrl, audio }) => {
-        if (isTTSCancelled || streamId !== ttsStreamId) { URL.revokeObjectURL(audioUrl); return; }
-        ttsQueue.push({ text: trimmed, audioUrl, audio });
-        pumpTTSQueue();
-    }).catch(err => console.warn('TTS queue: синтез не удался:', err));
+    // Порядок воспроизведения задаётся моментом постановки в очередь строк,
+    // а не порядком завершения запросов.
+    ttsSentenceQueue.push({ text: trimmed, streamId });
+    pumpSynth();
+}
+
+// Синтезатор: берёт следующую строку, синтезирует, кладёт аудио в очередь
+// воспроизведения и сразу берёт следующую — к моменту, когда замолчит
+// предложение N, аудио N+1 уже готово или синтезируется.
+function pumpSynth() {
+    if (ttsSynthBusy || isTTSCancelled) return;
+    // Просроченные строки (после flushTTSQueues) молча пропускаем
+    while (ttsSentenceQueue.length && ttsSentenceQueue[0].streamId !== ttsStreamId) {
+        ttsSentenceQueue.shift();
+    }
+    const item = ttsSentenceQueue.shift();
+    if (!item) return;
+    ttsSynthBusy = true;
+    speakWithSpark(item.text).then(({ audioUrl, audio }) => {
+        ttsSynthBusy = false;
+        if (isTTSCancelled || item.streamId !== ttsStreamId) {
+            URL.revokeObjectURL(audioUrl);
+        } else {
+            ttsQueue.push({ text: item.text, audioUrl, audio });
+            pumpTTSQueue();
+        }
+        pumpSynth();
+    }).catch(err => {
+        ttsSynthBusy = false;
+        console.warn('TTS queue: синтез не удался:', err);
+        pumpSynth(); // одна ошибка не должна остановить остальные строки
+    });
 }
 
 function pumpTTSQueue() {
@@ -1295,10 +1336,8 @@ async function speak(text: string) {
         } else if (service === 'vosk') {
             await speakWithVosk(text);
         } else if (service === 'spark') {
-            // Ручной Replay вне очереди: глушим очередь и играем сразу
-            ttsQueue.length = 0;
-            ttsPlaying = false;
-            if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+            // Ручной Replay вне очереди: глушим обе очереди и играем сразу
+            flushTTSQueues();
             const { audioUrl, audio } = await speakWithSpark(text);
             currentAudio = audio;
             audio.onended = () => { URL.revokeObjectURL(audioUrl); if (currentAudio === audio) currentAudio = null; };
